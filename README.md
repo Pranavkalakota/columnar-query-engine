@@ -28,12 +28,12 @@ MonetDB/X100 (Boncz, Zukowski, Nes, CIDR 2005).
 
 ## Status
 
-Under construction. Phase 0 of 10.
+Under construction. Phase 1 of 10.
 
 | Phase | Deliverable | State |
 |---|---|---|
-| 0 | Skeleton, TPC-H data generation, DuckDB oracle harness | in progress |
-| 1 | Types, vectors, batches, TBL loader, row scan/filter/project | |
+| 0 | Skeleton, TPC-H data generation, DuckDB oracle harness | done |
+| 1 | Types, vectors, batches, TBL loader, row scan/filter/project | next |
 | 2 | Row engines complete: aggregate, sort, limit, hash join | |
 | 3 | Vectorized kernels and operators | |
 | 4 | Columnar file format: encodings, zone maps, projection pushdown | |
@@ -79,6 +79,28 @@ Requires JDK 21 or newer and Maven.
 ```
 mvn test
 ```
+
+## Generating data
+
+TPC-H data comes from DuckDB's `tpch` extension and is written as both Parquet
+and pipe-delimited `.tbl`, so the same rows can be read through either path.
+
+```
+./benchmarks/scripts/gen_tpch.sh        # SF0.1 and SF1
+./benchmarks/scripts/gen_tpch.sh 0.01   # one small scale factor
+```
+
+Output lands in `data/sf<factor>/` and is gitignored. SF0.1 is 133MB and takes
+about 3 seconds; SF1 is roughly 1GB, so it is generated on demand.
+
+Two details that exist to keep later comparisons honest. TPC-H's money columns
+are `DECIMAL(15,2)` and this engine has no DECIMAL type, so they are cast to
+`DOUBLE` at generation time — both the engine and the oracle then read
+byte-identical data, instead of every comparison carrying a representation
+difference that says nothing about correctness. And real dbgen ends every line
+with a trailing `|`, which the generator reproduces: emitting cleaner files
+would mean the loader never gets tested against the format it actually has
+to read.
 
 ## Non-goals
 
