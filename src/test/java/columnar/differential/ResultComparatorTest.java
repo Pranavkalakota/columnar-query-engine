@@ -7,7 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Tests the tester: the Phase 0 correctness gate items. */
+/** Tests the tester, because a comparator nobody checked proves nothing. */
 class ResultComparatorTest {
 
     private final ResultComparator cmp = new ResultComparator();

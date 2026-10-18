@@ -28,26 +28,22 @@ MonetDB/X100 (Boncz, Zukowski, Nes, CIDR 2005).
 
 ## Status
 
-Under construction. Phase 1 of 10.
+Work in progress. Built and tested so far:
 
-| Phase | Deliverable | State |
-|---|---|---|
-| 0 | Skeleton, TPC-H data generation, DuckDB oracle harness | done |
-| 1 | Types, vectors, batches, TBL loader, row scan/filter/project | next |
-| 2 | Row engines complete: aggregate, sort, limit, hash join | |
-| 3 | Vectorized kernels and operators | |
-| 4 | Columnar file format: encodings, zone maps, projection pushdown | |
-| 5 | Vectorized sort, TopN, hash join | |
-| 6 | SQL lexer, parser, binder, REPL | |
-| 7 | Rule-based optimizer and EXPLAIN | |
-| 8 | Hand-written Parquet reader | |
-| 9 | Morsel-driven parallel execution | |
-| 10 | Benchmarks and write-up | |
+- Typed columnar vectors with null bitmaps, selection vectors and batch reuse
+- A `.tbl` and CSV loader that parses fields straight out of a byte buffer,
+  with quoting, both line endings and configurable batch sizes
+- In-memory tables
+- DuckDB wired in as a differential-testing oracle, with the SQL semantics the
+  engine has to match pinned by test
+- TPC-H data generation at any scale factor, as Parquet and `.tbl`
 
-**There are no benchmark numbers here yet.** Every number that eventually
-lands in this README will come from a reproducible run of
-`benchmarks/scripts/run_all.sh` on stated hardware. Until then, nothing is
-claimed.
+Not built yet: the execution operators, the custom columnar file format, the
+SQL frontend, the optimizer, the Parquet reader and parallel execution.
+
+**There are no benchmark numbers here yet.** Every number that eventually lands
+in this README will come from a reproducible run on stated hardware. Until
+then, nothing is claimed.
 
 ## Three execution engines, one plan
 

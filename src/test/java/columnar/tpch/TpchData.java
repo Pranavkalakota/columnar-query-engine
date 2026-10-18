@@ -42,7 +42,7 @@ public final class TpchData {
      * row count as reported by DuckDB.
      *
      * <p>The counts are returned rather than written down in a constant
-     * somewhere: later phases assert their own row counts against these, and a
+     * somewhere: later tests assert their own row counts against these, and a
      * hard-coded number would keep asserting the old scale factor's answer
      * after someone changed the scale factor.
      */

@@ -10,7 +10,7 @@ import java.sql.Statement;
 /**
  * DuckDB, running in process, used as the correctness oracle.
  *
- * <p>Every phase of this engine is judged by "does it agree with DuckDB on
+ * <p>Every part of this engine is judged by "does it agree with DuckDB on
  * this query", so the oracle is the first thing built and the last thing
  * trusted blindly. It is a test-scope dependency on purpose: it must never be
  * reachable from the engine's runtime path, or the benchmark would be
