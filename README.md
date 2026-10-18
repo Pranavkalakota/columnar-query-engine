@@ -1,8 +1,8 @@
 # ColumnarDB
 
-An analytical query engine written from scratch in Java. It stores tables in a
-columnar file format, reads Parquet, accepts a subset of SQL, optimizes the
-plan, and executes it with vectorized (batch-at-a-time) operators.
+An analytical query engine written from scratch in Java. The goal is to store
+tables in a columnar file format, read Parquet, accept a subset of SQL, optimize
+the plan, and execute it with vectorized (batch-at-a-time) operators.
 
 This is the read-and-query half of a database. The write-and-storage half is a
 separate project: an LSM-tree storage engine with a WAL, SSTables, bloom
@@ -28,18 +28,17 @@ MonetDB/X100 (Boncz, Zukowski, Nes, CIDR 2005).
 
 ## Status
 
-Work in progress. Built and tested so far:
+Work in progress, and early. What is in the repository so far:
 
-- Typed columnar vectors with null bitmaps, selection vectors and batch reuse
-- A `.tbl` and CSV loader that parses fields straight out of a byte buffer,
-  with quoting, both line endings and configurable batch sizes
-- In-memory tables
-- DuckDB wired in as a differential-testing oracle, with the SQL semantics the
-  engine has to match pinned by test
+- DuckDB wired in as a differential-testing oracle, with result comparison that
+  handles unordered results, a relative tolerance on floats, and NULL equality
+- The SQL type rules the engine has to match (promotion, aggregate result
+  types, division), pinned against that oracle by test
 - TPC-H data generation at any scale factor, as Parquet and `.tbl`
 
-Not built yet: the execution operators, the custom columnar file format, the
-SQL frontend, the optimizer, the Parquet reader and parallel execution.
+Not built yet: the columnar vectors and batches, the loaders, the execution
+operators, the columnar file format, the SQL frontend, the optimizer, the
+Parquet reader, and parallel execution.
 
 **There are no benchmark numbers here yet.** Every number that eventually lands
 in this README will come from a reproducible run on stated hardware. Until
@@ -47,9 +46,9 @@ then, nothing is claimed.
 
 ## Three execution engines, one plan
 
-The logical plan, the optimizer, and the storage readers are shared. Only the
-physical operators differ, which isolates the single variable the benchmark is
-about: the execution model.
+Three engines are planned. The logical plan, the optimizer and the storage
+readers will be shared, so only the physical operators differ, which isolates
+the single variable the benchmark is about: the execution model.
 
 | Engine | Description | Why it exists |
 |---|---|---|
@@ -105,7 +104,10 @@ functions, no nested Parquet types, no spill-to-disk, no cost-based optimizer,
 no distributed execution. Beating DuckDB is not a goal either; the goal is to
 land within a stated factor and explain the gap.
 
-## Layout
+## Intended layout
+
+Where the pieces are meant to go. Today only `types/` and the differential
+tests under `src/test` exist; the rest is the target.
 
 ```
 src/main/java/columnar/
