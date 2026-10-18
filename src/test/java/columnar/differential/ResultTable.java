@@ -1,6 +1,7 @@
 package columnar.differential;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -73,6 +74,16 @@ public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
     static Object normalize(Object v) {
         if (v == null) {
             return null;
+        }
+        if (v instanceof BigInteger i) {
+            // DuckDB returns SUM over any integral type as HUGEINT, which JDBC
+            // hands back as BigInteger. Without this the value would fall
+            // through to toString() and never compare equal to a Long.
+            try {
+                return i.longValueExact();
+            } catch (ArithmeticException ignored) {
+                return i.doubleValue();
+            }
         }
         if (v instanceof BigDecimal d) {
             // Keep exact integers exact; only widen to double when there is a

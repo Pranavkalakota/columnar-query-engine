@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.DisplayName;
@@ -36,6 +37,16 @@ class ResultTableTest {
         // a real SUM(INT64) bug.
         BigDecimal big = new BigDecimal("4611686018427387905");
         assertEquals(4611686018427387905L, ResultTable.normalize(big));
+    }
+
+    @Test
+    @DisplayName("BigInteger collapses to Long, because DuckDB SUM returns HUGEINT")
+    void bigIntegerCollapsesToLong() {
+        assertEquals(3L, ResultTable.normalize(BigInteger.valueOf(3)));
+        assertEquals(Long.MAX_VALUE, ResultTable.normalize(BigInteger.valueOf(Long.MAX_VALUE)));
+        // Beyond a long there is nothing exact left to preserve.
+        assertInstanceOf(Double.class,
+                ResultTable.normalize(BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.TEN)));
     }
 
     @Test
