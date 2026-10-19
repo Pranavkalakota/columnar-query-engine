@@ -2,13 +2,7 @@ package columnar.storage.csv;
 
 import java.util.Arrays;
 
-/**
- * Splits one already-framed record into field ranges. Separate from
- * {@code DelimitedRecordReader} because framing and splitting are different
- * jobs, and this one needs no I/O: quoting, escaping and empty-field rules are
- * testable against a plain {@code byte[]}. <b>Mutates the buffer</b>, since a
- * quoted field is unescaped in place, which is safe as unescaping only shortens.
- */
+/** Splits one already-framed record into field ranges. */
 public final class FieldSplitter {
 
     private final DelimitedOptions options;
@@ -32,10 +26,7 @@ public final class FieldSplitter {
         return length[index];
     }
 
-    /**
-     * Splits {@code buf[from, to)}, line ending and any trailing delimiter
-     * already removed. A zero-length range is one empty field.
-     */
+    /** Splits buf[from, to), line ending and any trailing delimiter already removed. */
     public void split(byte[] buf, int from, int to) {
         count = 0;
         int i = from;

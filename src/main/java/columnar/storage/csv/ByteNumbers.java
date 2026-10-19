@@ -2,22 +2,7 @@ package columnar.storage.csv;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Parses numbers straight out of a UTF-8 byte range, with no intermediate
- * String, so loading a column does not allocate once per value.
- *
- * <p>The integer path is hand-rolled, using the JDK's trick of accumulating
- * negatively: {@code Long.MIN_VALUE} has no positive counterpart, so a parser
- * that builds a positive value and negates it cannot represent it. Overflow is
- * detected rather than wrapped, because a silently wrapped key is worse than a
- * failed load.
- *
- * <p>Doubles go through {@link Double#parseDouble} on a String, which does
- * allocate. Correct decimal-to-binary rounding is genuinely hard and getting it
- * slightly wrong would put every aggregate a few bits away from the oracle, so
- * this is the one place where the allocation is worth it. The loader is not on
- * the query hot path; data is loaded once and queried many times.
- */
+/** Parses numbers out of a byte range, with no intermediate String. */
 public final class ByteNumbers {
 
     private ByteNumbers() {
@@ -65,7 +50,7 @@ public final class ByteNumbers {
         return (int) value;
     }
 
-    /** Parses a double. Allocates a String; see the class note for why. */
+    /** Parses a double. Allocates a String, deliberately: correct rounding is worth it. */
     public static double parseDouble(byte[] bytes, int offset, int length) {
         if (length == 0) {
             throw new NumberFormatException("empty number");
@@ -73,11 +58,7 @@ public final class ByteNumbers {
         return Double.parseDouble(text(bytes, offset, length));
     }
 
-    /**
-     * Parses a boolean, accepting the spellings a delimited file is likely to
-     * carry. Anything else fails rather than defaulting to false, which would
-     * turn a typo into data.
-     */
+    /** Parses a boolean. Anything unrecognised fails rather than defaulting to false. */
     public static boolean parseBoolean(byte[] bytes, int offset, int length) {
         if (length == 1) {
             byte b = bytes[offset];

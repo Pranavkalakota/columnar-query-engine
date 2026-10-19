@@ -5,17 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 
-/**
- * Splits a delimited byte stream into records and fields.
- *
- * <p><b>Zero copy, and that is a contract:</b> a field is a range into a shared
- * buffer, valid only until the next {@link #nextRecord()} overwrites it, so
- * anything outliving the record must copy it. See {@code docs/DESIGN.md}.
- *
- * <p>Handles both line endings, quoted fields containing delimiters or
- * newlines, escaped quotes, records longer than the buffer, and UTF-8. Empty
- * records are skipped, making a trailing newline a non-event.
- */
+/** Splits a delimited byte stream into records and fields. */
 public final class DelimitedRecordReader implements Closeable {
 
     private static final int DEFAULT_BUFFER = 1 << 16;
@@ -97,11 +87,7 @@ public final class DelimitedRecordReader implements Closeable {
         }
     }
 
-    /**
-     * Index of the newline ending this record, {@code bufLen} at input end
-     * without one, or {@code -1} when nothing is left. A quote flips in-quotes
-     * state, so an escaped {@code ""} flips twice and nets out.
-     */
+    /** The newline ending this record, bufLen if input ends without one, or -1 when spent. */
     private int findRecordEnd() throws IOException {
         int i = pos;
         boolean inQuotes = false;

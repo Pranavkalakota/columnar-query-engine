@@ -12,27 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * A table held entirely in memory as a list of {@link VectorBatch}es.
- *
- * <p>This is what lets a benchmark measure execution rather than I/O: the file
- * is parsed once, then the same batches are scanned repeatedly by the row and
- * vector engines so the only thing differing between runs is the execution
- * model.
- *
- * <p><b>Why loading allocates a batch per chunk.</b> {@link DelimitedLoader}
- * recycles one batch, resetting it each call, which is exactly right for
- * streaming and exactly wrong for materializing: keeping a reference to a
- * recycled batch would hand back the last chunk N times. So this allocates a
- * fresh batch per chunk and accepts the memory, which is the whole point of an
- * in-memory table.
- *
- * <p><b>Ownership.</b> The batches belong to the table and outlive any one
- * query, so a consumer must treat the column data as immutable. An operator may
- * set a selection vector on a batch, but that makes the batch unsafe to share
- * between two scans at once; parallel scans would need their own selections,
- * which is only noted here.
- */
+/** A table held entirely in memory as a list of VectorBatches. */
 public final class InMemoryTable {
 
     private final Schema schema;

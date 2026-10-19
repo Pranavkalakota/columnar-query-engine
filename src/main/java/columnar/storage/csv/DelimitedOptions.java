@@ -1,15 +1,6 @@
 package columnar.storage.csv;
 
-/**
- * How to split a delimited file into records and fields.
- *
- * <p>One type covers both formats this engine loads, because the hard part,
- * finding record and field boundaries in a byte stream, is the same for each.
- *
- * @param delimiter the byte between fields
- * @param quote the quote byte, or {@link #NO_QUOTE} when the format has none
- * @param trailingDelimiter whether every record ends with a delimiter
- */
+/** How to split a delimited file into records and fields. */
 public record DelimitedOptions(byte delimiter, byte quote, boolean trailingDelimiter) {
 
     /** Marker for a format without quoting, so no byte is treated as special. */
@@ -24,15 +15,12 @@ public record DelimitedOptions(byte delimiter, byte quote, boolean trailingDelim
         }
     }
 
-    /**
-     * TPC-H {@code .tbl}: pipe-delimited, no quoting, and a trailing delimiter
-     * on every line, so a 16-column row carries 17 pipes.
-     */
+    /** TPC-H .tbl: pipe-delimited, unquoted, trailing delimiter on every line. */
     public static DelimitedOptions tbl() {
         return new DelimitedOptions((byte) '|', NO_QUOTE, true);
     }
 
-    /** Ordinary CSV: comma-delimited, double-quoted, {@code ""} escaping a quote. */
+    /** Ordinary CSV: comma-delimited, double-quoted, "" escaping a quote. */
     public static DelimitedOptions csv() {
         return new DelimitedOptions((byte) ',', (byte) '"', false);
     }

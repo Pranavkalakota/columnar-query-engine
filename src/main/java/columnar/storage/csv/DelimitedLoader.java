@@ -13,14 +13,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * Fills {@link VectorBatch}es from a delimited file according to a
- * {@link Schema}, with no intermediate String or row object.
- *
- * <p><b>An empty field is NULL</b>, not an empty string, because that is what
- * the oracle does. A failed parse aborts the load naming the record and column
- * rather than substituting a zero. See {@code docs/DESIGN.md} for the reasoning.
- */
+/** Fills batches from a delimited file. An empty field is NULL, matching the oracle. */
 public final class DelimitedLoader implements Closeable {
 
     private final DelimitedRecordReader reader;
