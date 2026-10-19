@@ -28,17 +28,23 @@ MonetDB/X100 (Boncz, Zukowski, Nes, CIDR 2005).
 
 ## Status
 
-Work in progress, and early. What is in the repository so far:
+Work in progress. What is in the repository so far:
 
+- Typed columnar vectors over primitive arrays, with one-bit-per-row null
+  tracking, recycled batches, and a selection vector so a filter narrows a
+  batch instead of copying the rows that survived
+- Strings held as a single UTF-8 byte pool plus offsets, so a batch of a
+  thousand values is two arrays rather than a thousand objects
+- The type system the rest of the engine resolves against: types and their
+  promotion rules, fields, schemas with case-insensitive lookup and ambiguity
+  detection, and date conversions
 - DuckDB wired in as a differential-testing oracle, with result comparison that
   handles unordered results, a relative tolerance on floats, and NULL equality
-- The SQL type rules the engine has to match (promotion, aggregate result
-  types, division), pinned against that oracle by test
 - TPC-H data generation at any scale factor, as Parquet and `.tbl`
 
-Not built yet: the columnar vectors and batches, the loaders, the execution
-operators, the columnar file format, the SQL frontend, the optimizer, the
-Parquet reader, and parallel execution.
+Not built yet: the loaders, in-memory tables, the execution operators, the
+columnar file format, the SQL frontend, the optimizer, the Parquet reader, and
+parallel execution.
 
 **There are no benchmark numbers here yet.** Every number that eventually lands
 in this README will come from a reproducible run on stated hardware. Until
@@ -106,8 +112,8 @@ land within a stated factor and explain the gap.
 
 ## Intended layout
 
-Where the pieces are meant to go. Today only `types/` and the differential
-tests under `src/test` exist; the rest is the target.
+Where the pieces are meant to go. Today `types/` and `vector/` exist, along
+with the differential tests under `src/test`; the rest is the target.
 
 ```
 src/main/java/columnar/
