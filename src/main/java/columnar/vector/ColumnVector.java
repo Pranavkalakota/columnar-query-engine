@@ -2,21 +2,7 @@ package columnar.vector;
 
 import columnar.types.DataType;
 
-/**
- * One column's worth of a batch: a primitive array plus a null bitmap.
- *
- * <p>Not {@code ColumnVector<T>}. Generics erase to {@code Object}, so a
- * generic vector would box every value, which is the exact overhead this
- * engine exists to remove. Instead the base owns null handling and capacity
- * and each subclass exposes its raw primitive array, so a kernel casts once
- * per batch and then runs a tight loop over {@code int[]} or {@code double[]}.
- * Type dispatch happens once per batch rather than once per row because the
- * binder has already resolved every expression's type at plan time.
- *
- * <p>Vectors are mutable and recycled through {@link #reset}. Allocating a
- * fresh array per batch would put the vector path back into the allocator,
- * which is half of what makes the row path slow.
- */
+/** One column's worth of a batch: a primitive array plus a null bitmap. */
 public abstract class ColumnVector {
 
     private final DataType type;
@@ -53,16 +39,12 @@ public abstract class ColumnVector {
         validity.setNull(index);
     }
 
-    /** Checked once per batch by every kernel to pick a no-null fast path. */
+    /** Checked once per batch to pick a no-null fast path. */
     public final boolean mayHaveNulls() {
         return validity.mayHaveNulls();
     }
 
-    /**
-     * Reuses this vector for another batch, growing if needed and clearing
-     * every null. Subclasses grow their own storage through
-     * {@link #growValues}.
-     */
+    /** Reuses this vector for another batch, growing if needed and clearing every null. */
     public final void reset(int capacity) {
         if (capacity < 0) {
             throw new IllegalArgumentException("negative capacity: " + capacity);
@@ -72,16 +54,10 @@ public abstract class ColumnVector {
         this.capacity = capacity;
     }
 
-    /** Ensures the backing array holds at least {@code capacity} values. */
+    /** Ensures the backing array holds at least capacity values. */
     protected abstract void growValues(int capacity);
 
-    /**
-     * The value at a row as a boxed object, or {@code null}.
-     *
-     * <p>For the boxed row engine, result materialization, and tests only.
-     * Nothing on the vector path may call this: it allocates per value, which
-     * is the overhead being measured against.
-     */
+    /** Boxed value at a row, or null. Allocates, so not for the vector path. */
     public abstract Object valueAt(int index);
 
     protected final void checkIndex(int index) {

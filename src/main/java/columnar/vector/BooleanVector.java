@@ -3,21 +3,7 @@ package columnar.vector;
 import columnar.types.DataType;
 import java.util.Arrays;
 
-/**
- * A bitmap-backed vector for {@link DataType#BOOLEAN}: one bit per row.
- *
- * <p>A {@code boolean[]} would be simpler and eight times larger. The reason
- * for bits is three-valued logic. A SQL boolean needs two facts per row, its
- * value and whether it is known, and this vector already carries the second as
- * a validity bitmap. With both as {@code long[]}, {@code a AND b} over 64 rows
- * is a few word operations rather than 64 branches, and
- * {@code NULL AND FALSE = FALSE} falls out of masking instead of a per-row
- * special case.
- *
- * <p>Note this is not what a filter produces. A filter narrows a selection
- * vector of surviving row indexes; this type is for BOOLEAN column data and
- * for boolean expression results that something else then consumes.
- */
+/** BOOLEAN storage, one bit per row. */
 public final class BooleanVector extends ColumnVector {
 
     private long[] words;
@@ -27,7 +13,7 @@ public final class BooleanVector extends ColumnVector {
         this.words = new long[Validity.wordCount(capacity)];
     }
 
-    /** The backing words, for word-at-a-time boolean kernels. */
+    /** The raw words. */
     public long[] words() {
         return words;
     }
@@ -45,7 +31,7 @@ public final class BooleanVector extends ColumnVector {
         }
     }
 
-    /** Reallocates when too small, and clears every bit to false. */
+    /** Grows if needed, and clears every bit. */
     @Override
     protected void growValues(int capacity) {
         int needed = Validity.wordCount(capacity);

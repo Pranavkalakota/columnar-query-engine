@@ -3,15 +3,7 @@ package columnar.vector;
 import columnar.types.DataType;
 import java.time.LocalDate;
 
-/**
- * An {@code int[]}-backed vector, used for both {@link DataType#INT32} and
- * {@link DataType#DATE}.
- *
- * <p>A DATE is days since 1970-01-01, negative before it, so it needs no
- * storage of its own. Sharing the array means date filters compile to the same
- * integer comparison kernels as any other int column, which is the whole
- * reason to represent dates this way rather than as objects.
- */
+/** int[] storage, shared by INT32 and DATE. */
 public final class IntVector extends ColumnVector {
 
     private int[] values;
@@ -25,12 +17,12 @@ public final class IntVector extends ColumnVector {
         return new IntVector(DataType.INT32, capacity);
     }
 
-    /** A DATE vector, stored as days since the epoch. */
+    /** A DATE vector: days since 1970-01-01. */
     public static IntVector dates(int capacity) {
         return new IntVector(DataType.DATE, capacity);
     }
 
-    /** The backing array, for kernels. Longer than {@code capacity} after a shrink. */
+    /** The raw array. May be longer than capacity after a shrink. */
     public int[] values() {
         return values;
     }
@@ -44,7 +36,7 @@ public final class IntVector extends ColumnVector {
         values[index] = value;
     }
 
-    /** Reallocates when the array is too small. Contents are not preserved. */
+    /** Grows if needed. Does not preserve contents. */
     @Override
     protected void growValues(int capacity) {
         if (values.length < capacity) {

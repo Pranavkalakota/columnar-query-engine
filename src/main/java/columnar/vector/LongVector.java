@@ -2,14 +2,7 @@ package columnar.vector;
 
 import columnar.types.DataType;
 
-/**
- * A {@code long[]}-backed vector for {@link DataType#INT64}.
- *
- * <p>Also the result type of {@code SUM} over any integer column, which is why
- * an aggregate's accumulator array is a {@code long[]} even when the input is
- * an {@code int[]}: summing a few million ints overflows an int long before it
- * overflows the answer.
- */
+/** long[] storage for INT64. */
 public final class LongVector extends ColumnVector {
 
     private long[] values;
@@ -19,7 +12,7 @@ public final class LongVector extends ColumnVector {
         this.values = new long[capacity];
     }
 
-    /** The backing array, for kernels. Longer than {@code capacity} after a shrink. */
+    /** The raw array. May be longer than capacity after a shrink. */
     public long[] values() {
         return values;
     }
@@ -33,7 +26,7 @@ public final class LongVector extends ColumnVector {
         values[index] = value;
     }
 
-    /** Reallocates when the array is too small. Contents are not preserved. */
+    /** Grows if needed. Does not preserve contents. */
     @Override
     protected void growValues(int capacity) {
         if (values.length < capacity) {

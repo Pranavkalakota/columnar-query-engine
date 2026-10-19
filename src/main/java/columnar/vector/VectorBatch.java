@@ -3,16 +3,7 @@ package columnar.vector;
 import columnar.types.Field;
 import columnar.types.Schema;
 
-/**
- * A batch of rows: one {@link ColumnVector} per column, plus an optional
- * selection vector.
- *
- * <p>A filter narrows the selection rather than copying surviving rows; that
- * trade is worked through in {@code docs/DESIGN.md}.
- *
- * <p>For operators: {@code selectedCount() == 0} means no surviving rows,
- * <b>not</b> end of stream. A filter rejecting a whole batch must keep pulling.
- */
+/** A batch of rows: one ColumnVector per column, plus an optional selection vector. */
 public final class VectorBatch {
 
     private final Schema schema;
@@ -60,7 +51,7 @@ public final class VectorBatch {
         return columns[schema.requireIndexOf(name)];
     }
 
-    /** How many rows this batch can hold. Tracked here so a loader need not ask a column. */
+    /** How many rows this batch can hold. */
     public int capacity() {
         return capacity;
     }
@@ -77,7 +68,7 @@ public final class VectorBatch {
         this.rowCount = rowCount;
     }
 
-    /** Rows a consumer should visit: the selection size, or every row when unfiltered. */
+    /** Rows to visit: the selection size, or every row when unfiltered. */
     public int selectedCount() {
         return selection == null ? rowCount : selectionSize;
     }
@@ -86,16 +77,12 @@ public final class VectorBatch {
         return selection != null;
     }
 
-    /** The selection array, or null when unfiltered; only {@link #selectedCount()} entries are live. */
+    /** The selection, or null when unfiltered. Only selectedCount() entries are live. */
     public int[] selection() {
         return selection;
     }
 
-    /**
-     * Narrows this batch to the rows named by {@code selection}. Only the size
-     * is validated: checking every index would cost as much as the filter that
-     * produced them, so a well-formed selection is the producer's job.
-     */
+    /** Narrows this batch. Only the size is checked; the producer owns index validity. */
     public void select(int[] selection, int size) {
         if (selection == null) {
             throw new IllegalArgumentException("use clearSelection() to drop a selection");

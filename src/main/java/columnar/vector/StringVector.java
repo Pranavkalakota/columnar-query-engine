@@ -4,20 +4,7 @@ import columnar.types.DataType;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/**
- * A {@link DataType#VARCHAR} vector held as one {@code byte[]} of UTF-8 plus an
- * {@code int[]} of offsets, where row {@code i} spans {@code offsets[i]} to
- * {@code offsets[i + 1]}.
- *
- * <p>So a batch of 1024 strings is two allocations, not 1024 {@code String}
- * objects, and filters can compare byte ranges in place without allocating.
- *
- * <p>Values are <b>appended in row order</b>, because a value's position depends
- * on the total length of everything before it. Loaders fill a batch in order.
- *
- * <p><b>An empty string and a NULL are both zero bytes long</b>, told apart only
- * by the validity bit, which matters for TPC-H {@code .tbl} empty fields.
- */
+/** VARCHAR storage: one UTF-8 byte pool plus offsets. Append in row order. */
 public final class StringVector extends ColumnVector {
 
     private static final int DEFAULT_BYTES_PER_VALUE = 16;
@@ -37,12 +24,12 @@ public final class StringVector extends ColumnVector {
         this.written = 0;
     }
 
-    /** The UTF-8 byte pool, for kernels. Only bytes below {@code offsets[rowCount()]} are live. */
+    /** The byte pool. Only bytes below offsets[rowCount()] are live. */
     public byte[] data() {
         return data;
     }
 
-    /** Row boundaries, valid through index {@link #rowCount()}. */
+    /** Row boundaries, valid through index rowCount(). */
     public int[] offsets() {
         return offsets;
     }
@@ -69,7 +56,7 @@ public final class StringVector extends ColumnVector {
         append(utf8, 0, utf8.length);
     }
 
-    /** Appends a NULL, which still advances the offsets so later rows stay addressable. */
+    /** Appends a NULL, still advancing the offsets. */
     public void appendNull() {
         int row = written;
         append(EMPTY, 0, 0);
@@ -82,17 +69,13 @@ public final class StringVector extends ColumnVector {
         return offsets[index + 1] - offsets[index];
     }
 
-    /** Decodes a row to a String. Allocates, so never on the vector path. */
+    /** Decodes a row. Allocates, so not for the vector path. */
     public String getString(int index) {
         checkRow(index);
         return new String(data, offsets[index], byteLength(index), StandardCharsets.UTF_8);
     }
 
-    /**
-     * Guards reads against rows never appended: after a reset the offsets above
-     * row zero still hold the old batch, so a capacity-only check would hand
-     * back stale bytes instead of failing.
-     */
+    /** Rejects rows never appended, whose offsets still hold the previous batch. */
     private void checkRow(int index) {
         if (index < 0 || index >= written) {
             throw new IndexOutOfBoundsException("row " + index + " of " + written + " appended");

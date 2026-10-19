@@ -1,19 +1,6 @@
 package columnar.vector;
 
-/**
- * A per-vector null bitmap: one bit per row, {@code 1} meaning valid.
- *
- * <p>One bit per row rather than a {@code boolean[]}'s byte, so eight times as
- * many rows fit in a cache line. The bigger win is {@link #mayHaveNulls()}: a
- * kernel checks it once per batch and skips null handling entirely when it is
- * clear. {@code 1 = valid} matches Arrow and Parquet, so definition levels map
- * across without inversion.
- *
- * <p><b>mayHaveNulls is conservative.</b> It latches true on the first null
- * written and is never recomputed: clearing it would mean scanning the bitmap
- * to save a branch. It means "might", not "does", and a stale true only costs
- * a slower loop.
- */
+/** A per-vector null bitmap: one bit per row, 1 meaning valid. */
 public final class Validity {
 
     private static final long ALL_VALID = -1L;
@@ -31,16 +18,12 @@ public final class Validity {
         return new Validity(capacity);
     }
 
-    /** Number of words needed to hold {@code capacity} bits. */
+    /** Number of words needed to hold capacity bits. */
     static int wordCount(int capacity) {
         return (capacity + 63) >>> 6;
     }
 
-    /**
-     * Reuses this bitmap for another batch, growing if needed and marking
-     * everything valid again. Batches are recycled rather than reallocated so
-     * the vector path makes no per-batch garbage, which the benchmark measures.
-     */
+    /** Reuses this bitmap for another batch, growing if needed. */
     public void reset(int capacity) {
         if (capacity < 0) {
             throw new IllegalArgumentException("negative capacity: " + capacity);
@@ -58,16 +41,12 @@ public final class Validity {
         return capacity;
     }
 
-    /** True when no null has been written since the last {@link #reset}. */
+    /** True when no null has been written since the last reset. */
     public boolean mayHaveNulls() {
         return mayHaveNulls;
     }
 
-    /**
-     * Whether row {@code index} holds a value. Deliberately unchecked: it sits in
-     * the innermost kernel loop, so bounds are the caller's job. The writers
-     * below do check, running once per value where a clear message is worth it.
-     */
+    /** Whether a row holds a value. Unchecked: it sits in the innermost kernel loop. */
     public boolean isValid(int index) {
         return (words[index >>> 6] & (1L << (index & 63))) != 0;
     }
@@ -76,14 +55,14 @@ public final class Validity {
         return !isValid(index);
     }
 
-    /** Marks a row null, latching {@link #mayHaveNulls()}. */
+    /** Marks a row null, latching mayHaveNulls(). */
     public void setNull(int index) {
         checkIndex(index);
         words[index >>> 6] &= ~(1L << (index & 63));
         mayHaveNulls = true;
     }
 
-    /** Marks a row valid. Does not clear {@link #mayHaveNulls()}; see the class note. */
+    /** Marks a row valid. Deliberately does not clear mayHaveNulls, which only ever latches. */
     public void setValid(int index) {
         checkIndex(index);
         words[index >>> 6] |= 1L << (index & 63);
