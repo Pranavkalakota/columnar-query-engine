@@ -11,23 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Generates TPC-H data with DuckDB's {@code tpch} extension and writes it out
- * as Parquet and as pipe-delimited {@code .tbl}, which are the two sources the
- * engine has to read.
- *
- * <p><b>DECIMAL is cast to DOUBLE on the way out.</b> TPC-H's money and
- * quantity columns are {@code DECIMAL(15,2)} and v1 of this engine has no
- * DECIMAL type. If the engine read doubles while the oracle read decimals,
- * every comparison would carry a representation difference that says nothing
- * about correctness. The cost is that double addition is not associative, so
- * sums depend on evaluation order, which is why comparison uses a relative
- * tolerance.
- *
- * <p><b>The cast list is discovered, not hand-written.</b> Enumerating the
- * decimal columns by hand is a list that silently rots the first time DuckDB's
- * TPC-H schema changes, and the failure would look like an engine bug.
- */
+/** Generates TPC-H data as Parquet and as pipe-delimited .tbl. */
 public final class TpchData {
 
     /** The eight TPC-H tables, as DuckDB's dbgen names them. */
@@ -37,15 +21,7 @@ public final class TpchData {
     private TpchData() {
     }
 
-    /**
-     * Generates one scale factor into {@code outDir}, returning each table's
-     * row count as reported by DuckDB.
-     *
-     * <p>The counts are returned rather than written down in a constant
-     * somewhere: later tests assert their own row counts against these, and a
-     * hard-coded number would keep asserting the old scale factor's answer
-     * after someone changed the scale factor.
-     */
+    /** Generates one scale factor, returning DuckDB's own row counts. */
     public static Map<String, Long> generate(double scaleFactor, Path outDir) {
         try {
             Files.createDirectories(outDir);
@@ -71,12 +47,7 @@ public final class TpchData {
                 .formatted(projection, table, DuckDbOracle.quote(out)));
     }
 
-    /**
-     * Real dbgen puts a trailing delimiter at the end of every line, so a
-     * 16-column row ends in {@code |}. Appending an empty column reproduces
-     * that exactly. It would be easier to emit files without it, but then the
-     * loader would never be tested against the format it actually has to read.
-     */
+    /** dbgen ends every line with a delimiter; an empty column reproduces that. */
     private static void writeTbl(DuckDbOracle oracle, String table, String projection, Path out) {
         oracle.execute("COPY (SELECT %s, '' AS trailing_delimiter FROM %s) TO '%s'"
                 .formatted(projection, table, DuckDbOracle.quote(out))

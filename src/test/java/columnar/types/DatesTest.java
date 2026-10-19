@@ -20,8 +20,7 @@ class DatesTest {
     @Test
     @DisplayName("every day from 0001-01-01 to 9999-12-31 agrees with LocalDate")
     void exhaustivelyMatchesLocalDate() {
-        // Hand-rolled calendar arithmetic earns no benefit of the doubt, so
-        // this checks all 3.6 million days rather than a handful of samples.
+        // Hand-rolled calendar maths earns no benefit of the doubt.
         for (int epochDay = Dates.MIN_EPOCH_DAY; epochDay <= Dates.MAX_EPOCH_DAY; epochDay++) {
             LocalDate date = LocalDate.ofEpochDay(epochDay);
             int computed = Dates.toEpochDay(date.getYear(), date.getMonthValue(), date.getDayOfMonth());

@@ -40,9 +40,7 @@ class InMemoryTableTest {
     @Test
     @DisplayName("every batch holds its own chunk, not N references to the recycled last one")
     void batchesHoldDistinctData() throws IOException {
-        // This is the test the "allocate per chunk" decision exists for. If
-        // the loader's recycled batch were kept, all three batches here would
-        // read as the final chunk.
+        // If the loader's recycled batch were kept, all three would read as the last chunk.
         InMemoryTable table = load(rows(7), 3);
         assertEquals(3, table.batchCount());
         assertEquals(7, table.rowCount());

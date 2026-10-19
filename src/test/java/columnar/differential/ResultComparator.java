@@ -6,21 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Compares an engine result against the oracle's result.
- *
- * <p>The rules: results compare unordered unless the query has an
- * {@code ORDER BY}, doubles compare with a relative tolerance, {@code NULL}
- * equals {@code NULL}, and numerics compare by value rather than by class.
- *
- * <p>The unordered case is the interesting one. Sorting both sides first does
- * not work, because a tolerance is not a total order: two rows that should
- * match can sort apart. So this does multiset matching instead, bucketing rows
- * by their exactly-comparable columns and scanning linearly only inside a
- * bucket. A column counts as exact when no {@code Double} appears in it on
- * either side, which keeps a column that is integral on one side and
- * approximate on the other out of the key.
- */
+/** Compares an engine result against the oracle's result. */
 public final class ResultComparator {
 
     public static final double DEFAULT_TOLERANCE = 1e-9;
@@ -132,10 +118,7 @@ public final class ResultComparator {
         return a.equals(b);
     }
 
-    /**
-     * Relative comparison. NaN matches NaN, and the {@code ==} check
-     * short-circuits exact equality and matching infinities.
-     */
+    /** Relative comparison. */
     private boolean doublesEqual(double a, double b) {
         if (Double.isNaN(a) || Double.isNaN(b)) {
             return Double.isNaN(a) && Double.isNaN(b);

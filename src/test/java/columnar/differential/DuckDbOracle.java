@@ -7,22 +7,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
-/**
- * DuckDB, running in process, used as the correctness oracle.
- *
- * <p>Every part of this engine is judged by "does it agree with DuckDB on
- * this query", so the oracle is the first thing built and the last thing
- * trusted blindly. It is a test-scope dependency on purpose: it must never be
- * reachable from the engine's runtime path, or the benchmark would be
- * measuring DuckDB.
- *
- * <p>Failures surface as an unchecked {@link OracleException}. That is a
- * deliberate choice rather than laziness about {@link SQLException}: the
- * equivalence matrix runs the same query across engines, batch sizes, thread
- * counts and rule toggles inside nested lambdas, and a checked exception makes
- * that code unreadable. A failing oracle is a broken test setup, not a
- * condition any caller can recover from.
- */
+/** DuckDB, running in process, used as the correctness oracle. */
 public final class DuckDbOracle implements AutoCloseable {
 
     private final Connection conn;
@@ -67,21 +52,13 @@ public final class DuckDbOracle implements AutoCloseable {
         }
     }
 
-    /**
-     * Row count straight from the oracle. Tests compare against this rather
-     * than against a hard-coded constant, so that changing the scale factor
-     * cannot leave a stale number asserting the wrong thing.
-     */
+    /** Row count straight from the oracle. */
     public long count(String table) {
         ResultTable t = query("SELECT count(*) FROM " + table);
         return (Long) t.rows().get(0).get(0);
     }
 
-    /**
-     * Exposes a Parquet file under a table name as a view, not a table, so the
-     * bytes are read lazily. At SF1 copying lineitem into memory would cost
-     * more than every query run against it.
-     */
+    /** Registers a Parquet file as a view, so it is read lazily. */
     public void registerParquet(String table, Path file) {
         execute("CREATE OR REPLACE VIEW %s AS SELECT * FROM read_parquet('%s')"
                 .formatted(table, quote(file)));

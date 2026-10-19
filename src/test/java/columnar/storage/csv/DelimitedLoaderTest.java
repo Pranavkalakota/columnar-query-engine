@@ -49,8 +49,7 @@ class DelimitedLoaderTest {
     @Test
     @DisplayName("every row arrives exactly once, at every batch size and row count")
     void loadsEveryRowExactlyOnce() throws IOException {
-        // Row counts straddle the batch boundary, which is where a loader
-        // drops or repeats a row.
+        // Row counts straddle the batch boundary, where a loader drops or repeats.
         for (int batchSize : new int[] {1, 2, 3, 7, 64}) {
             for (int rowCount : new int[] {0, 1, batchSize - 1, batchSize, batchSize + 1,
                     2 * batchSize, 2 * batchSize + 1}) {
@@ -84,8 +83,7 @@ class DelimitedLoaderTest {
         for (Object value : rows.get(0)) {
             assertNull(value, "every empty field should be NULL");
         }
-        // The row after an all-NULL row still lands, proving the string
-        // vector's offsets kept advancing through the NULL.
+        // Proves the string vector's offsets kept advancing through the NULL.
         assertEquals("x", rows.get(1).get(4));
         assertEquals(LocalDate.of(1970, 1, 1), rows.get(1).get(5));
     }

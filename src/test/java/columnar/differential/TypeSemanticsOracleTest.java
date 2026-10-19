@@ -10,15 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/**
- * Pins the SQL semantics this engine has to reproduce, by asking the oracle
- * instead of assuming.
- *
- * <p>These are not tests of DuckDB. They are a written record of the behaviour
- * {@link DataType} and the expression engine are built to match, placed where a
- * DuckDB upgrade that changes one of them fails loudly rather than quietly
- * turning every later differential test red for reasons nobody can find.
- */
+/** Pins the SQL semantics the engine must reproduce, by asking the oracle. */
 class TypeSemanticsOracleTest {
 
     private DuckDbOracle oracle;
@@ -67,8 +59,7 @@ class TypeSemanticsOracleTest {
     void sumOverIntegersIsHugeIntInTheOracle() {
         assertEquals("HUGEINT", typeOf("(SELECT SUM(i) FROM (SELECT CAST(1 AS INTEGER) i) t)"));
         assertEquals("HUGEINT", typeOf("(SELECT SUM(i) FROM (SELECT CAST(1 AS BIGINT) i) t)"));
-        // The engine has no 128-bit type. Normalization collapses HUGEINT to a
-        // long when it fits, so the two agree on every sum that fits.
+        // No 128-bit type here; HUGEINT collapses to a long when it fits.
         assertEquals(DataType.INT64, DataType.INT32.sumType());
         assertEquals(3L, value("(SELECT SUM(i) FROM (SELECT CAST(3 AS INTEGER) i) t)"));
     }

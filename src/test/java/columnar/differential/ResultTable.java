@@ -9,21 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * A materialized query result, normalized so that two results can be compared
- * without caring which Java class each side happened to produce.
- *
- * <p>Normalization matters because the oracle and the engine disagree on
- * representation all the time: JDBC hands back {@code Integer} where the
- * engine has a {@code long}, and {@code BigDecimal} where the engine has a
- * {@code double}. Numerics must compare by value, not by class, so every
- * integral type collapses to {@link Long} and every approximate type to
- * {@link Double} on the way in.
- *
- * <p>A {@code BigDecimal} with no fractional part that fits in a long stays
- * integral rather than becoming a double, so that large {@code SUM} results
- * are compared exactly instead of through 53 bits of mantissa.
- */
+/** A query result, normalized so numerics compare by value rather than by class. */
 public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
 
     public ResultTable {
@@ -76,9 +62,7 @@ public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
             return null;
         }
         if (v instanceof BigInteger i) {
-            // DuckDB returns SUM over any integral type as HUGEINT, which JDBC
-            // hands back as BigInteger. Without this the value would fall
-            // through to toString() and never compare equal to a Long.
+            // DuckDB returns SUM as HUGEINT, which JDBC hands back as BigInteger.
             try {
                 return i.longValueExact();
             } catch (ArithmeticException ignored) {
@@ -86,8 +70,7 @@ public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
             }
         }
         if (v instanceof BigDecimal d) {
-            // Keep exact integers exact; only widen to double when there is a
-            // fractional part or the value cannot survive a long.
+            // Widen only when there is a fraction or it will not fit a long.
             if (d.scale() <= 0) {
                 try {
                     return d.longValueExact();
@@ -113,8 +96,7 @@ public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
         if (v instanceof LocalDate || v instanceof Boolean || v instanceof String) {
             return v;
         }
-        // Anything exotic compares by its textual form rather than silently
-        // passing as equal.
+        // Anything exotic compares by text rather than passing as equal.
         return v.toString();
     }
 }
