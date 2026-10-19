@@ -1,13 +1,6 @@
 package columnar.types;
 
-/**
- * One column's name, type, and whether it admits NULL.
- *
- * <p>{@code nullable} is not decoration. Kernels check a single
- * {@code mayHaveNulls} flag per batch and take a branch-free fast path when it
- * is clear, so a column declared non-nullable at load time lets the whole
- * validity bitmap be skipped for every batch of it.
- */
+/** One column's name, type, and whether it admits NULL. */
 public record Field(String name, DataType type, boolean nullable) {
 
     public Field {
@@ -19,12 +12,12 @@ public record Field(String name, DataType type, boolean nullable) {
         }
     }
 
-    /** A nullable field, which is the default for anything read from a file. */
+    /** A nullable field, the default for anything read from a file. */
     public static Field of(String name, DataType type) {
         return new Field(name, type, true);
     }
 
-    /** A field that is known to contain no NULLs, which unlocks the no-null fast path. */
+    /** A field known to hold no NULLs, which unlocks the no-null fast path. */
     public static Field required(String name, DataType type) {
         return new Field(name, type, false);
     }

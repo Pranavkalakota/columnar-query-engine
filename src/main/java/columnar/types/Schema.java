@@ -5,20 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * An ordered list of {@link Field}s with name lookup.
- *
- * <p>Lookup is case-insensitive because unquoted SQL identifiers are, and it
- * reports ambiguity rather than resolving it. A join of two tables that both
- * have a {@code c} column produces a schema with two {@code c} fields, and
- * quietly returning the first one would make {@code SELECT c} silently read a
- * column the user did not mean. The binder turns this into an error with a
- * position; here it is just refused.
- *
- * <p>{@link #project} exists because column pruning is the headline columnar
- * win: a scan should read only the columns a query actually touches, so the
- * plan needs a cheap way to say "this subset, in this order".
- */
+/** An ordered list of Fields with name lookup. */
 public final class Schema {
 
     private final List<Field> fields;
@@ -67,12 +54,7 @@ public final class Schema {
         return hits != null && hits.size() == 1;
     }
 
-    /**
-     * The index of a column, or {@code -1} when no field has that name.
-     *
-     * <p>Throws when more than one does, because any single answer would be a
-     * guess about which column the caller meant.
-     */
+    /** The index of a column, or -1 when no field has that name. */
     public int indexOf(String name) {
         List<Integer> hits = byLowerName.get(name.toLowerCase());
         if (hits == null) {
@@ -84,7 +66,7 @@ public final class Schema {
         return hits.get(0);
     }
 
-    /** Like {@link #indexOf} but fails on an unknown name instead of returning -1. */
+    /** Like indexOf but fails on an unknown name instead of returning -1. */
     public int requireIndexOf(String name) {
         int index = indexOf(name);
         if (index < 0) {

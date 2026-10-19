@@ -43,6 +43,26 @@ that is integral on one side and approximate on the other out of the key. This
 degrades to O(n²) on an all-float result set, which the query suite barely
 produces.
 
+## Types are an enum, and DATE is an int
+
+Every type in v1 is unparameterized, so there is nothing for a record to carry
+and an enum gives exhaustive `switch` for free. Adding `DECIMAL(precision,
+scale)` later would need parameters and force a sealed interface; that is the
+price of not paying the ceremony now.
+
+DATE is days since 1970-01-01 in an `int`, negative before it, so it shares
+storage with INT32 and date filters compile to the same integer comparison
+kernels as any other int column. It is integral but deliberately *not* numeric:
+comparing two dates is meaningful, multiplying them is not, and excluding it
+from arithmetic promotion makes the binder reject that the way DuckDB does.
+
+## Column lookup reports ambiguity rather than resolving it
+
+A join of two tables that both have a `c` column produces a schema with two
+`c` fields. Returning the first would make `SELECT c` silently read a column
+the user did not mean, so lookup refuses instead. Lookup is case-insensitive
+because unquoted SQL identifiers are.
+
 ## Vectors hold primitive arrays, not generics
 
 `ColumnVector<T>` would erase to `Object` and box every value, which is the

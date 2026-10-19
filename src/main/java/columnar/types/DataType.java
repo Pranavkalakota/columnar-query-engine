@@ -1,18 +1,6 @@
 package columnar.types;
 
-/**
- * The types this engine understands.
- *
- * <p>An enum rather than a sealed interface, deliberately. Every v1 type is
- * unparameterized, so there is nothing for a record to carry, and an enum gives
- * exhaustive {@code switch} for free. Adding {@code DECIMAL(precision, scale)}
- * would need parameters and force a sealed interface; that is the later price.
- *
- * <p>{@link #DATE} is days since 1970-01-01 in an {@code int}, negative before
- * 1970, so it shares {@code IntVector} with {@link #INT32}. It is integral but
- * deliberately not numeric: comparing two dates is meaningful, multiplying them
- * is not, and excluding it from promotion makes the binder reject that.
- */
+/** The types this engine understands. */
 public enum DataType {
 
     INT32(4),
@@ -31,29 +19,22 @@ public enum DataType {
         this.byteWidth = byteWidth;
     }
 
-    /** True for the types backed by an {@code int[]} or {@code long[]}, which includes DATE. */
+    /** True for the types backed by an int[] or long[], which includes DATE. */
     public boolean isIntegral() {
         return this == INT32 || this == INT64 || this == DATE;
     }
 
-    /** True for the types arithmetic accepts. DATE is excluded on purpose; see the class note. */
+    /** Types arithmetic accepts. DATE is deliberately not one. */
     public boolean isNumeric() {
         return this == INT32 || this == INT64 || this == DOUBLE;
     }
 
-    /** False only for VARCHAR, whose values have no fixed size on disk or in memory. */
+    /** False only for VARCHAR. */
     public boolean isFixedWidth() {
         return byteWidth != VARIABLE_WIDTH;
     }
 
-    /**
-     * Bytes per value for a fixed-width type.
-     *
-     * <p>Throws for VARCHAR rather than returning a sentinel, because a
-     * sentinel would flow into a size calculation and produce a plausible
-     * wrong number instead of a stack trace. Callers check
-     * {@link #isFixedWidth()} first.
-     */
+    /** Bytes per value for a fixed-width type. */
     public int byteWidth() {
         if (!isFixedWidth()) {
             throw new UnsupportedOperationException(this + " has no fixed byte width");
@@ -61,15 +42,7 @@ public enum DataType {
         return byteWidth;
     }
 
-    /**
-     * The common type two operands are promoted to, or an exception when there
-     * is none.
-     *
-     * <p>The rules: a type with itself is unchanged, INT32 with INT64 widens to
-     * INT64, and any integer with DOUBLE widens to DOUBLE. Everything else is
-     * an error, which is what keeps {@code date * boolean} from reaching a
-     * kernel that has no idea what to do with it.
-     */
+    /** The common type two operands promote to. Throws when there is none. */
     public static DataType widen(DataType left, DataType right) {
         if (left == right) {
             return left;
@@ -83,18 +56,7 @@ public enum DataType {
         throw new IllegalArgumentException("no common type for " + left + " and " + right);
     }
 
-    /**
-     * The result type of {@code SUM} over this type.
-     *
-     * <p>{@code SUM(INT32)} returns INT64 because summing a few million ints
-     * overflows an int long before it overflows the answer. That is a
-     * correctness rule, not an optimization.
-     *
-     * <p><b>Known divergence from the oracle.</b> DuckDB returns {@code SUM}
-     * over any integral type as HUGEINT, which this engine has no type for, so
-     * {@code SUM(INT64)} is INT64 here. The two agree for every sum that fits
-     * in a long; past that DuckDB is right and this overflows.
-     */
+    /** Result type of SUM. Integers widen to INT64. */
     public DataType sumType() {
         if (!isNumeric()) {
             throw new IllegalArgumentException("SUM is not defined for " + this);
@@ -102,13 +64,7 @@ public enum DataType {
         return this == DOUBLE ? DOUBLE : INT64;
     }
 
-    /**
-     * The result type of division, which is always DOUBLE.
-     *
-     * <p>Checked against the oracle, not assumed: DuckDB evaluates {@code 1/2}
-     * as {@code 0.5} rather than as integer division, and {@code 1/0} as
-     * {@code Infinity} rather than an error. Both are pinned by a test.
-     */
+    /** Division always yields DOUBLE. */
     public DataType divideType(DataType other) {
         if (!isNumeric() || !other.isNumeric()) {
             throw new IllegalArgumentException("division is not defined for " + this + " and " + other);
@@ -116,7 +72,7 @@ public enum DataType {
         return DOUBLE;
     }
 
-    /** {@code AVG} is always DOUBLE, even over integers. */
+    /** AVG is always DOUBLE, even over integers. */
     public DataType avgType() {
         if (!isNumeric()) {
             throw new IllegalArgumentException("AVG is not defined for " + this);

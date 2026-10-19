@@ -2,18 +2,7 @@ package columnar.types;
 
 import java.time.LocalDate;
 
-/**
- * Conversions between a calendar date and the {@code int} day offset from
- * 1970-01-01 that {@link DataType#DATE} is stored as.
- *
- * <p>Done by hand rather than through {@link LocalDate} because loading SF1
- * converts tens of millions of date fields and {@code LocalDate.of(...)}
- * allocates one object each. Hand-rolled calendar maths is a classic source of
- * off-by-one bugs, so the test checks every day in range against LocalDate.
- *
- * <p>The supported range matches the oracle: 0001-01-01 through 9999-12-31,
- * which is well inside an {@code int}.
- */
+/** Calendar dates to and from the int day offset from 1970-01-01. */
 public final class Dates {
 
     /** 0001-01-01, the earliest date the oracle accepts. */
@@ -42,12 +31,7 @@ public final class Dates {
         };
     }
 
-    /**
-     * Converts a validated calendar date to a day offset from the epoch.
-     *
-     * <p>Rejects an impossible date rather than rolling it over, matching the
-     * oracle, which fails on 2023-02-29 instead of reading it as March 1st.
-     */
+    /** Day offset from the epoch. Rejects an impossible date rather than rolling it over. */
     public static int toEpochDay(int year, int month, int day) {
         if (year < 1 || year > 9999) {
             throw new IllegalArgumentException("year out of range: " + year);
@@ -72,11 +56,7 @@ public final class Dates {
         return (int) (total - DAYS_0000_TO_1970);
     }
 
-    /**
-     * Parses {@code YYYY-MM-DD} from a UTF-8 byte range, with no intermediate
-     * String. This is the form TPC-H {@code .tbl} files and DuckDB's query text
-     * both use.
-     */
+    /** Parses YYYY-MM-DD from bytes, with no intermediate String. */
     public static int parse(byte[] bytes, int offset, int length) {
         if (length != DATE_TEXT_LENGTH
                 || bytes[offset + 4] != '-'
@@ -105,7 +85,7 @@ public final class Dates {
         return new String(bytes, offset, Math.max(0, length), java.nio.charset.StandardCharsets.UTF_8);
     }
 
-    /** For display and boxed access only; allocates. */
+    /** Allocates; for display and boxed access only. */
     public static LocalDate toLocalDate(int epochDay) {
         return LocalDate.ofEpochDay(epochDay);
     }
