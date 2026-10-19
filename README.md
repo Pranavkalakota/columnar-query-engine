@@ -38,13 +38,18 @@ Work in progress. What is in the repository so far:
 - The type system the rest of the engine resolves against: types and their
   promotion rules, fields, schemas with case-insensitive lookup and ambiguity
   detection, and date conversions
+- A loader for TPC-H `.tbl` and for CSV, which reads fields as byte ranges out
+  of a shared buffer rather than building strings: quoted fields spanning
+  delimiters and newlines, both line endings, records larger than the buffer,
+  and numbers parsed straight from the bytes
+- In-memory tables, so a file is parsed once and the same batches are scanned
+  repeatedly
 - DuckDB wired in as a differential-testing oracle, with result comparison that
   handles unordered results, a relative tolerance on floats, and NULL equality
 - TPC-H data generation at any scale factor, as Parquet and `.tbl`
 
-Not built yet: the loaders, in-memory tables, the execution operators, the
-columnar file format, the SQL frontend, the optimizer, the Parquet reader, and
-parallel execution.
+Not built yet: the execution operators, the columnar file format, the SQL
+frontend, the optimizer, the Parquet reader, and parallel execution.
 
 **There are no benchmark numbers here yet.** Every number that eventually lands
 in this README will come from a reproducible run on stated hardware. Until
@@ -112,8 +117,9 @@ land within a stated factor and explain the gap.
 
 ## Intended layout
 
-Where the pieces are meant to go. Today `types/` and `vector/` exist, along
-with the differential tests under `src/test`; the rest is the target.
+Where the pieces are meant to go. Today `types/`, `vector/` and
+`storage/csv/` exist, along with the differential tests under `src/test`; the
+rest is the target.
 
 ```
 src/main/java/columnar/
