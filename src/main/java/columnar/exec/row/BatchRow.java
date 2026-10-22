@@ -9,12 +9,7 @@ import columnar.vector.LongVector;
 import columnar.vector.StringVector;
 import columnar.vector.VectorBatch;
 
-/**
- * A cursor over one row of a batch, reading primitives without boxing.
- *
- * <p>Reused across rows rather than allocated per row, so a Row handed
- * downstream is only valid until the cursor moves.
- */
+/** A reused cursor over one row of a batch. Valid only until it moves. */
 public final class BatchRow implements Row {
 
     private VectorBatch batch;
