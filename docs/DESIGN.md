@@ -164,6 +164,27 @@ immutable. An operator may set a selection on a batch, but that makes the batch
 unsafe to share between two concurrent scans. That is a problem for whenever
 parallel execution lands, noted here rather than discovered then.
 
+## The row baseline reads the same columnar batches
+
+The point of the benchmark is to isolate one variable: the execution model. So
+the tuned row engine reads primitives straight out of the same column vectors
+the vectorized engine uses, one row at a time, through a reused cursor. The
+only difference is per-row virtual calls against tight batch loops, not the
+data layout. A row baseline reading from some other structure would be
+measuring two changes at once, and the resulting speedup would mean nothing.
+
+The boxed engine is the other end of the scale: an `Object[]` per row with
+interpreted expressions, which is the textbook Volcano model and where boxing
+and allocation show up. Reporting a speedup against only that one would
+flatter the result, which is why both exist.
+
+Two details that keep the baseline honest rather than a strawman. The cursor is
+reused across rows instead of allocated per row, so the scan does not invent
+garbage the vectorized path avoids. And an expression resolves its column names
+to indexes once, when the evaluator is built, rather than looking them up per
+row; a baseline that did schema lookups inside the loop would lose for a reason
+that has nothing to do with being row-at-a-time.
+
 ## Known divergences from the oracle
 
 - `SUM` over an integer column returns `INT64` here and `HUGEINT` in DuckDB.
