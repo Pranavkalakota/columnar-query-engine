@@ -48,13 +48,13 @@ public final class Schema {
         return fields.stream().map(Field::name).toList();
     }
 
-    /** True when exactly one field has this name. An ambiguous name is not "present". */
+    /** True when exactly one field has this name. */
     public boolean contains(String name) {
         List<Integer> hits = byLowerName.get(name.toLowerCase());
         return hits != null && hits.size() == 1;
     }
 
-    /** The index of a column, or -1 when no field has that name. */
+    /** A column's index, or -1 if absent. */
     public int indexOf(String name) {
         List<Integer> hits = byLowerName.get(name.toLowerCase());
         if (hits == null) {
@@ -66,7 +66,7 @@ public final class Schema {
         return hits.get(0);
     }
 
-    /** Like indexOf but fails on an unknown name instead of returning -1. */
+    /** Like indexOf, but fails on an unknown name. */
     public int requireIndexOf(String name) {
         int index = indexOf(name);
         if (index < 0) {
@@ -75,7 +75,7 @@ public final class Schema {
         return index;
     }
 
-    /** A schema holding just these columns, in the order given. Used for column pruning. */
+    /** A schema holding just these columns, in the order given. */
     public Schema project(List<String> names) {
         List<Field> projected = new ArrayList<>(names.size());
         for (String name : names) {

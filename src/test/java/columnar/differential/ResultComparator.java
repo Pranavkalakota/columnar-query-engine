@@ -21,7 +21,7 @@ public final class ResultComparator {
         this.tolerance = tolerance;
     }
 
-    /** Returns empty when the results match, or a description of the first difference. */
+    /** Empty when they match, else the difference. */
     public Optional<String> compare(ResultTable expected, ResultTable actual, boolean ordered) {
         if (expected.columnCount() != actual.columnCount()) {
             return Optional.of("column count: expected %d, got %d"
@@ -70,7 +70,7 @@ public final class ResultComparator {
         return Optional.empty();
     }
 
-    /** A column is exact when neither side ever holds an approximate value in it. */
+    /** Exact when neither side holds a Double. */
     private static boolean[] exactColumns(ResultTable expected, ResultTable actual) {
         boolean[] exact = new boolean[expected.columnCount()];
         java.util.Arrays.fill(exact, true);

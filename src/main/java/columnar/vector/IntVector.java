@@ -22,7 +22,7 @@ public final class IntVector extends ColumnVector {
         return new IntVector(DataType.DATE, capacity);
     }
 
-    /** The raw array. May be longer than capacity after a shrink. */
+    /** The raw array. */
     public int[] values() {
         return values;
     }

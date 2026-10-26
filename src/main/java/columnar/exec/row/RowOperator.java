@@ -10,7 +10,7 @@ public interface RowOperator extends AutoCloseable {
 
     void open();
 
-    /** The next row, or null at end of stream. The row is valid until the next call. */
+    /** The next row, or null at end of stream. */
     Row next();
 
     @Override

@@ -27,7 +27,7 @@ class DelimitedLoaderTest {
             Field.of("i", DataType.INT32), Field.of("l", DataType.INT64), Field.of("d", DataType.DOUBLE),
             Field.of("b", DataType.BOOLEAN), Field.of("s", DataType.VARCHAR), Field.of("day", DataType.DATE));
 
-    /** Loads every batch and flattens the boxed values, so nothing can be double counted. */
+    /** Loads every batch and flattens the boxed values. */
     private static List<List<Object>> loadAll(Schema schema, String text, int batchSize) throws IOException {
         List<List<Object>> rows = new ArrayList<>();
         VectorBatch batch = VectorBatch.allocate(schema, batchSize);
@@ -49,7 +49,7 @@ class DelimitedLoaderTest {
     @Test
     @DisplayName("every row arrives exactly once, at every batch size and row count")
     void loadsEveryRowExactlyOnce() throws IOException {
-        // Row counts straddle the batch boundary, where a loader drops or repeats.
+        // Row counts straddle the batch boundary.
         for (int batchSize : new int[] {1, 2, 3, 7, 64}) {
             for (int rowCount : new int[] {0, 1, batchSize - 1, batchSize, batchSize + 1,
                     2 * batchSize, 2 * batchSize + 1}) {

@@ -47,14 +47,14 @@ public final class TpchData {
                 .formatted(projection, table, DuckDbOracle.quote(out)));
     }
 
-    /** dbgen ends every line with a delimiter; an empty column reproduces that. */
+    /** dbgen ends every line with a delimiter. */
     private static void writeTbl(DuckDbOracle oracle, String table, String projection, Path out) {
         oracle.execute("COPY (SELECT %s, '' AS trailing_delimiter FROM %s) TO '%s'"
                 .formatted(projection, table, DuckDbOracle.quote(out))
                 + " (FORMAT CSV, DELIMITER '|', HEADER false, QUOTE '')");
     }
 
-    /** Builds a select list that casts every DECIMAL column to DOUBLE and leaves the rest alone. */
+    /** Select list casting DECIMAL columns to DOUBLE. */
     static String castProjection(DuckDbOracle oracle, String table) {
         ResultTable columns = oracle.query(
                 "SELECT column_name, data_type FROM information_schema.columns"
@@ -76,7 +76,7 @@ public final class TpchData {
         return sb.toString();
     }
 
-    /** Formats a scale factor without an exponent, which dbgen will not parse. */
+    /** Formats a scale factor without an exponent. */
     static String plain(double scaleFactor) {
         return BigDecimal.valueOf(scaleFactor).stripTrailingZeros().toPlainString();
     }

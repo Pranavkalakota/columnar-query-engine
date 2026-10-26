@@ -12,7 +12,7 @@ public final class DoubleVector extends ColumnVector {
         this.values = new double[capacity];
     }
 
-    /** The raw array. May be longer than capacity after a shrink. */
+    /** The raw array. */
     public double[] values() {
         return values;
     }

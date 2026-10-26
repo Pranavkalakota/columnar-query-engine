@@ -2,7 +2,7 @@ package columnar.storage.csv;
 
 import java.nio.charset.StandardCharsets;
 
-/** Parses numbers out of a byte range, with no intermediate String. */
+/** Parses numbers from bytes, without a String. */
 public final class ByteNumbers {
 
     private ByteNumbers() {
@@ -50,7 +50,7 @@ public final class ByteNumbers {
         return (int) value;
     }
 
-    /** Parses a double. Allocates a String, deliberately: correct rounding is worth it. */
+    /** Parses a double. */
     public static double parseDouble(byte[] bytes, int offset, int length) {
         if (length == 0) {
             throw new NumberFormatException("empty number");
@@ -58,7 +58,7 @@ public final class ByteNumbers {
         return Double.parseDouble(text(bytes, offset, length));
     }
 
-    /** Parses a boolean. Anything unrecognised fails rather than defaulting to false. */
+    /** Parses a boolean. */
     public static boolean parseBoolean(byte[] bytes, int offset, int length) {
         if (length == 1) {
             byte b = bytes[offset];

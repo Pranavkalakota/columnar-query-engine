@@ -2,7 +2,7 @@ package columnar.exec.row;
 
 import columnar.types.Schema;
 
-/** A row whose values are boxed objects, for computed results and the boxed engine. */
+/** A row of boxed values. */
 public final class ObjectRow implements Row {
 
     private final Schema schema;

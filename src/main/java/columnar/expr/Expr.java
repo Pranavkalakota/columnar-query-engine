@@ -7,7 +7,7 @@ import java.time.LocalDate;
 /** An expression tree. Immutable, and shared by every execution engine. */
 public sealed interface Expr {
 
-    /** The type this expression produces against a schema, or an error if it cannot be typed. */
+    /** The type this expression produces. */
     DataType type(Schema schema);
 
     static ColumnRef col(String name) {
@@ -30,12 +30,12 @@ public sealed interface Expr {
         return new Literal(value, DataType.BOOLEAN);
     }
 
-    /** A DATE literal, stored as days since 1970-01-01 like every other date. */
+    /** A DATE literal, as days since 1970-01-01. */
     static Literal date(String isoDate) {
         return new Literal((int) LocalDate.parse(isoDate).toEpochDay(), DataType.DATE);
     }
 
-    /** A NULL of a known type, which the three-valued logic needs to stay typed. */
+    /** A NULL of a known type. */
     static Literal nul(DataType type) {
         return new Literal(null, type);
     }
@@ -44,7 +44,7 @@ public sealed interface Expr {
         return new Binary(op, this, right);
     }
 
-    /** A reference to a column by name, resolved against the scan's schema. */
+    /** A column reference, resolved against the schema. */
     record ColumnRef(String name) implements Expr {
         public ColumnRef {
             if (name == null || name.isBlank()) {
@@ -63,7 +63,7 @@ public sealed interface Expr {
         }
     }
 
-    /** A constant. A null value is a typed NULL, not an absence of type. */
+    /** A constant. */
     record Literal(Object value, DataType type) implements Expr {
         public Literal {
             if (type == null) {
@@ -105,7 +105,7 @@ public sealed interface Expr {
             return op == BinaryOp.DIVIDE ? l.divideType(r) : DataType.widen(l, r);
         }
 
-        /** Comparison allows any two numerics, or two values of the same type. */
+        /** Any two numerics, or matching types. */
         private static boolean comparable(DataType l, DataType r) {
             return l == r || (l.isNumeric() && r.isNumeric());
         }

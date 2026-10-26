@@ -3,7 +3,7 @@ package columnar.vector;
 import columnar.types.Field;
 import columnar.types.Schema;
 
-/** A batch of rows: one ColumnVector per column, plus an optional selection vector. */
+/** A batch of rows. */
 public final class VectorBatch {
 
     private final Schema schema;
@@ -68,7 +68,7 @@ public final class VectorBatch {
         this.rowCount = rowCount;
     }
 
-    /** Rows to visit: the selection size, or every row when unfiltered. */
+    /** Rows to visit. */
     public int selectedCount() {
         return selection == null ? rowCount : selectionSize;
     }
@@ -77,12 +77,12 @@ public final class VectorBatch {
         return selection != null;
     }
 
-    /** The selection, or null when unfiltered. Only selectedCount() entries are live. */
+    /** The selection, or null when unfiltered. */
     public int[] selection() {
         return selection;
     }
 
-    /** Narrows this batch. Only the size is checked; the producer owns index validity. */
+    /** Narrows this batch. */
     public void select(int[] selection, int size) {
         if (selection == null) {
             throw new IllegalArgumentException("use clearSelection() to drop a selection");
@@ -100,7 +100,7 @@ public final class VectorBatch {
         this.selectionSize = 0;
     }
 
-    /** Maps a logical position to the physical row it refers to. */
+    /** Maps a logical position to a physical row. */
     public int rowIndex(int position) {
         if (position < 0 || position >= selectedCount()) {
             throw new IndexOutOfBoundsException("position " + position + " of " + selectedCount());

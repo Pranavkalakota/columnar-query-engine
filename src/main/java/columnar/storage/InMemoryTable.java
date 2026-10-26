@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** A table held entirely in memory as a list of VectorBatches. */
+/** A table held in memory as batches. */
 public final class InMemoryTable {
 
     private final Schema schema;
@@ -25,7 +25,7 @@ public final class InMemoryTable {
         this.rowCount = rowCount;
     }
 
-    /** Builds a table of exactly these batches, for tests and for generated data. */
+    /** Builds a table from existing batches. */
     public static InMemoryTable of(Schema schema, List<VectorBatch> batches) {
         long rows = 0;
         for (VectorBatch batch : batches) {
@@ -79,7 +79,7 @@ public final class InMemoryTable {
         return batches.get(index);
     }
 
-    /** The batches, in order. Unmodifiable, though the batches themselves are not. */
+    /** The batches, in order. */
     public List<VectorBatch> batches() {
         return batches;
     }

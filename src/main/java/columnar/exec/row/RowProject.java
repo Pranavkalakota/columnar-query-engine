@@ -43,7 +43,7 @@ public final class RowProject implements RowOperator {
         child.open();
     }
 
-    /** Reuses one output row, so it is valid only until the next call. */
+    /** Reuses one output row. */
     @Override
     public Row next() {
         Row row = child.next();

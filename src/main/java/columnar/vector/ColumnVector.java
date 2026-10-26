@@ -2,7 +2,7 @@ package columnar.vector;
 
 import columnar.types.DataType;
 
-/** One column's worth of a batch: a primitive array plus a null bitmap. */
+/** One column's worth of a batch. */
 public abstract class ColumnVector {
 
     private final DataType type;
@@ -44,7 +44,7 @@ public abstract class ColumnVector {
         return validity.mayHaveNulls();
     }
 
-    /** Reuses this vector for another batch, growing if needed and clearing every null. */
+    /** Reuses this vector for another batch. */
     public final void reset(int capacity) {
         if (capacity < 0) {
             throw new IllegalArgumentException("negative capacity: " + capacity);
@@ -57,7 +57,7 @@ public abstract class ColumnVector {
     /** Ensures the backing array holds at least capacity values. */
     protected abstract void growValues(int capacity);
 
-    /** Boxed value at a row, or null. Allocates, so not for the vector path. */
+    /** Boxed value at a row, or null. */
     public abstract Object valueAt(int index);
 
     protected final void checkIndex(int index) {

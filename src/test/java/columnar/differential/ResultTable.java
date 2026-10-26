@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
-/** A query result, normalized so numerics compare by value rather than by class. */
+/** A query result, normalized to compare by value. */
 public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
 
     public ResultTable {
@@ -62,7 +62,7 @@ public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
             return null;
         }
         if (v instanceof BigInteger i) {
-            // DuckDB returns SUM as HUGEINT, which JDBC hands back as BigInteger.
+            // DuckDB returns SUM as HUGEINT.
             try {
                 return i.longValueExact();
             } catch (ArithmeticException ignored) {
@@ -70,7 +70,7 @@ public record ResultTable(List<String> columnNames, List<List<Object>> rows) {
             }
         }
         if (v instanceof BigDecimal d) {
-            // Widen only when there is a fraction or it will not fit a long.
+            // Widen only for a fraction or overflow.
             if (d.scale() <= 0) {
                 try {
                     return d.longValueExact();

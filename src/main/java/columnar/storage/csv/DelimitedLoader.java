@@ -13,7 +13,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 
-/** Fills batches from a delimited file. An empty field is NULL, matching the oracle. */
+/** Fills batches from a delimited file. */
 public final class DelimitedLoader implements Closeable {
 
     private final DelimitedRecordReader reader;
@@ -38,7 +38,7 @@ public final class DelimitedLoader implements Closeable {
         return rowsRead;
     }
 
-    /** Fills a batch to capacity; a short batch is normal, only an empty one ends the file. */
+    /** Fills a batch to capacity. */
     public boolean loadInto(VectorBatch batch) throws IOException {
         batch.reset(batch.capacity());
         int row = 0;
@@ -72,7 +72,7 @@ public final class DelimitedLoader implements Closeable {
         }
     }
 
-    /** A string NULL is appended to keep offsets advancing; fixed-width just marks the row. */
+    /** A string NULL is appended to keep offsets advancing. */
     private static void storeNull(ColumnVector vector, int row) {
         if (vector instanceof StringVector strings) {
             strings.appendNull();

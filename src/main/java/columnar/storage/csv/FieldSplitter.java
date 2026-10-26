@@ -26,7 +26,7 @@ public final class FieldSplitter {
         return length[index];
     }
 
-    /** Splits buf[from, to), line ending and any trailing delimiter already removed. */
+    /** Splits a record, delimiters already stripped. */
     public void split(byte[] buf, int from, int to) {
         count = 0;
         int i = from;

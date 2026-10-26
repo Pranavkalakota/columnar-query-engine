@@ -32,7 +32,7 @@ class ResultTableTest {
     @Test
     @DisplayName("an exact-integer BigDecimal stays integral instead of losing mantissa bits")
     void exactDecimalStaysLong() {
-        // 2^62 + 1 is not a double; widening here would hide a real SUM(INT64) bug.
+        // 2^62 + 1 is not a double.
         BigDecimal big = new BigDecimal("4611686018427387905");
         assertEquals(4611686018427387905L, ResultTable.normalize(big));
     }

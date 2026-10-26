@@ -40,7 +40,7 @@ class InMemoryTableTest {
     @Test
     @DisplayName("every batch holds its own chunk, not N references to the recycled last one")
     void batchesHoldDistinctData() throws IOException {
-        // If the loader's recycled batch were kept, all three would read as the last chunk.
+        // A recycled batch would repeat the last chunk.
         InMemoryTable table = load(rows(7), 3);
         assertEquals(3, table.batchCount());
         assertEquals(7, table.rowCount());

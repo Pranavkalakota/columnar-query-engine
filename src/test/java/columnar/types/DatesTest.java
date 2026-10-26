@@ -57,7 +57,7 @@ class DatesTest {
     @Test
     @DisplayName("an impossible date is rejected, not rolled over into the next month")
     void rejectsImpossibleDates() {
-        // The oracle fails on 2023-02-29 rather than reading it as March 1st.
+        // The oracle rejects 2023-02-29 rather than rolling over.
         assertThrows(IllegalArgumentException.class, () -> parse("2023-02-29"));
         assertThrows(IllegalArgumentException.class, () -> Dates.toEpochDay(2024, 13, 1));
         assertThrows(IllegalArgumentException.class, () -> Dates.toEpochDay(2024, 0, 1));

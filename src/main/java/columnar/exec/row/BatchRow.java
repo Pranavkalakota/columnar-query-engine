@@ -9,7 +9,7 @@ import columnar.vector.LongVector;
 import columnar.vector.StringVector;
 import columnar.vector.VectorBatch;
 
-/** A reused cursor over one row of a batch. Valid only until it moves. */
+/** A reused cursor over one row of a batch. */
 public final class BatchRow implements Row {
 
     private VectorBatch batch;

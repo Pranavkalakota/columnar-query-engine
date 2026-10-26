@@ -10,7 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-/** Pins the SQL semantics the engine must reproduce, by asking the oracle. */
+/** Pins the SQL semantics against the oracle. */
 class TypeSemanticsOracleTest {
 
     private DuckDbOracle oracle;
@@ -59,7 +59,7 @@ class TypeSemanticsOracleTest {
     void sumOverIntegersIsHugeIntInTheOracle() {
         assertEquals("HUGEINT", typeOf("(SELECT SUM(i) FROM (SELECT CAST(1 AS INTEGER) i) t)"));
         assertEquals("HUGEINT", typeOf("(SELECT SUM(i) FROM (SELECT CAST(1 AS BIGINT) i) t)"));
-        // No 128-bit type here; HUGEINT collapses to a long when it fits.
+        // No 128-bit type here.
         assertEquals(DataType.INT64, DataType.INT32.sumType());
         assertEquals(3L, value("(SELECT SUM(i) FROM (SELECT CAST(3 AS INTEGER) i) t)"));
     }

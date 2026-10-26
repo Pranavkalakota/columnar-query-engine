@@ -12,12 +12,12 @@ public record Field(String name, DataType type, boolean nullable) {
         }
     }
 
-    /** A nullable field, the default for anything read from a file. */
+    /** A nullable field, the usual default. */
     public static Field of(String name, DataType type) {
         return new Field(name, type, true);
     }
 
-    /** A field known to hold no NULLs, which unlocks the no-null fast path. */
+    /** A field known to hold no NULLs. */
     public static Field required(String name, DataType type) {
         return new Field(name, type, false);
     }

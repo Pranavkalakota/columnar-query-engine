@@ -10,7 +10,7 @@ public enum DataType {
     DATE(4),
     VARCHAR(-1);
 
-    /** Width marker for a type whose values have no fixed size. */
+    /** Marks a type with no fixed width. */
     private static final int VARIABLE_WIDTH = -1;
 
     private final int byteWidth;
@@ -19,7 +19,7 @@ public enum DataType {
         this.byteWidth = byteWidth;
     }
 
-    /** True for the types backed by an int[] or long[], which includes DATE. */
+    /** True for the types backed by an int[] or long[]. */
     public boolean isIntegral() {
         return this == INT32 || this == INT64 || this == DATE;
     }
@@ -42,7 +42,7 @@ public enum DataType {
         return byteWidth;
     }
 
-    /** The common type two operands promote to. Throws when there is none. */
+    /** The common type two operands promote to. */
     public static DataType widen(DataType left, DataType right) {
         if (left == right) {
             return left;

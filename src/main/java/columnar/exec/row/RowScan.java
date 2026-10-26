@@ -30,7 +30,7 @@ public final class RowScan implements RowOperator {
         opened = true;
     }
 
-    /** Advances past exhausted batches, so an empty one is not end of stream. */
+    /** Advances past exhausted batches. */
     @Override
     public Row next() {
         if (!opened) {

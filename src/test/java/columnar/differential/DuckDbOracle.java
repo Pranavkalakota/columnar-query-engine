@@ -21,7 +21,7 @@ public final class DuckDbOracle implements AutoCloseable {
         return open("jdbc:duckdb:");
     }
 
-    /** Opens a database backed by a file, so generated data survives the JVM. */
+    /** Opens a database backed by a file. */
     public static DuckDbOracle onDisk(Path dbFile) {
         return open("jdbc:duckdb:" + dbFile.toAbsolutePath());
     }
@@ -34,7 +34,7 @@ public final class DuckDbOracle implements AutoCloseable {
         }
     }
 
-    /** Runs a query and materializes the whole result, normalized for comparison. */
+    /** Runs a query and normalizes the result. */
     public ResultTable query(String sql) {
         try (Statement s = conn.createStatement(); ResultSet rs = s.executeQuery(sql)) {
             return ResultTable.of(rs);
@@ -43,7 +43,7 @@ public final class DuckDbOracle implements AutoCloseable {
         }
     }
 
-    /** Runs a statement that returns no result set (DDL, COPY, CALL). */
+    /** Runs a statement with no result set. */
     public void execute(String sql) {
         try (Statement s = conn.createStatement()) {
             s.execute(sql);
@@ -58,7 +58,7 @@ public final class DuckDbOracle implements AutoCloseable {
         return (Long) t.rows().get(0).get(0);
     }
 
-    /** Registers a Parquet file as a view, so it is read lazily. */
+    /** Registers a Parquet file as a view. */
     public void registerParquet(String table, Path file) {
         execute("CREATE OR REPLACE VIEW %s AS SELECT * FROM read_parquet('%s')"
                 .formatted(table, quote(file)));
@@ -70,7 +70,7 @@ public final class DuckDbOracle implements AutoCloseable {
         execute("LOAD " + name);
     }
 
-    /** For callers that need raw JDBC, such as the TPC-H generator. */
+    /** Raw JDBC, for the TPC-H generator. */
     public Connection connection() {
         return conn;
     }

@@ -6,7 +6,7 @@ import columnar.types.Schema;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-/** Interprets an expression one row at a time. Names resolve once, at construction. */
+/** Interprets an expression one row at a time. */
 public final class RowEvaluator {
 
     private record Column(int index, DataType type) {}
@@ -53,7 +53,7 @@ public final class RowEvaluator {
         };
     }
 
-    /** A DATE reads as its epoch day, so it compares as an int against a DATE literal. */
+    /** A DATE reads as its epoch day. */
     private static Object read(Column c, Row row) {
         if (row.isNull(c.index())) {
             return null;
@@ -79,7 +79,7 @@ public final class RowEvaluator {
         return b.op().isComparison() ? compare(b.op(), l, r) : arithmetic(b.op(), nodeTypes.get(b), l, r);
     }
 
-    /** Three-valued AND and OR: a decisive operand wins even when the other is NULL. */
+    /** Three-valued AND and OR. */
     private Object evalLogical(Expr.Binary b, Row row) {
         boolean and = b.op() == BinaryOp.AND;
         Object l = eval(b.left(), row);
@@ -116,7 +116,7 @@ public final class RowEvaluator {
         };
     }
 
-    /** Division always lands in the double branch, so 1/0 is Infinity, matching the oracle. */
+    /** Division always lands in the double branch. */
     private static Object arithmetic(BinaryOp op, DataType type, Object l, Object r) {
         if (type == DataType.DOUBLE) {
             double a = ((Number) l).doubleValue();

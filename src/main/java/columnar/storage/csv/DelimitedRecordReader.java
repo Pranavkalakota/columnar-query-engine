@@ -54,7 +54,7 @@ public final class DelimitedRecordReader implements Closeable {
         return recordNumber;
     }
 
-    /** Advances to the next non-empty record, returning false at end of input. */
+    /** Advances to the next non-empty record. */
     public boolean nextRecord() throws IOException {
         while (true) {
             int end = findRecordEnd();
@@ -87,7 +87,7 @@ public final class DelimitedRecordReader implements Closeable {
         }
     }
 
-    /** The newline ending this record, bufLen if input ends without one, or -1 when spent. */
+    /** Newline index, bufLen at EOF, -1 when spent. */
     private int findRecordEnd() throws IOException {
         int i = pos;
         boolean inQuotes = false;
@@ -110,7 +110,7 @@ public final class DelimitedRecordReader implements Closeable {
         }
     }
 
-    /** Compacts the consumed prefix away, grows if a record fills the buffer, then reads. */
+    /** Compacts, grows if needed, then reads. */
     private int fill() throws IOException {
         int shift = pos;
         if (shift > 0) {

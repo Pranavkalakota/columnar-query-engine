@@ -31,7 +31,7 @@ public final class RowFilter implements RowOperator {
         child.open();
     }
 
-    /** A NULL predicate rejects the row, exactly as FALSE does; only TRUE passes. */
+    /** A NULL predicate rejects the row, exactly as FALSE does. */
     @Override
     public Row next() {
         Row row;

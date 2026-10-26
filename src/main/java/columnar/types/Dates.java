@@ -2,7 +2,7 @@ package columnar.types;
 
 import java.time.LocalDate;
 
-/** Calendar dates to and from the int day offset from 1970-01-01. */
+/** Calendar dates to and from epoch days. */
 public final class Dates {
 
     /** 0001-01-01, the earliest date the oracle accepts. */
@@ -11,7 +11,7 @@ public final class Dates {
     /** 9999-12-31, the latest date the oracle accepts. */
     public static final int MAX_EPOCH_DAY = 2932896;
 
-    /** Days from 0000-01-01 to 1970-01-01, the offset the formula below removes. */
+    /** Days from 0000-01-01 to the epoch. */
     private static final long DAYS_0000_TO_1970 = 719528;
 
     private static final int DATE_TEXT_LENGTH = 10;
@@ -31,7 +31,7 @@ public final class Dates {
         };
     }
 
-    /** Day offset from the epoch. Rejects an impossible date rather than rolling it over. */
+    /** Day offset from the epoch. */
     public static int toEpochDay(int year, int month, int day) {
         if (year < 1 || year > 9999) {
             throw new IllegalArgumentException("year out of range: " + year);

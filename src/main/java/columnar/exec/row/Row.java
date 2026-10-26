@@ -2,7 +2,7 @@ package columnar.exec.row;
 
 import columnar.types.Schema;
 
-/** One row, read through typed accessors so the tuned engine never boxes. */
+/** One row, read without boxing. */
 public interface Row {
 
     Schema schema();

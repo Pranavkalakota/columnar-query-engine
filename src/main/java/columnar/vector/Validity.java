@@ -1,6 +1,6 @@
 package columnar.vector;
 
-/** A per-vector null bitmap: one bit per row, 1 meaning valid. */
+/** A per-vector null bitmap. */
 public final class Validity {
 
     private static final long ALL_VALID = -1L;
@@ -13,7 +13,7 @@ public final class Validity {
         reset(capacity);
     }
 
-    /** A bitmap of the given size with every row marked valid. */
+    /** A bitmap with every row valid. */
     public static Validity allValid(int capacity) {
         return new Validity(capacity);
     }
@@ -41,12 +41,12 @@ public final class Validity {
         return capacity;
     }
 
-    /** True when no null has been written since the last reset. */
+    /** True when no null was written since reset. */
     public boolean mayHaveNulls() {
         return mayHaveNulls;
     }
 
-    /** Whether a row holds a value. Unchecked: it sits in the innermost kernel loop. */
+    /** Whether a row holds a value. */
     public boolean isValid(int index) {
         return (words[index >>> 6] & (1L << (index & 63))) != 0;
     }
@@ -62,7 +62,7 @@ public final class Validity {
         mayHaveNulls = true;
     }
 
-    /** Marks a row valid. Deliberately does not clear mayHaveNulls, which only ever latches. */
+    /** Marks a row valid. */
     public void setValid(int index) {
         checkIndex(index);
         words[index >>> 6] |= 1L << (index & 63);

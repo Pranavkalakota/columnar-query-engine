@@ -45,7 +45,7 @@ class TpchDataTest {
             assertTrue(Files.size(dir.resolve(table + ".tbl")) > 0, table + ".tbl");
             assertTrue(counts.get(table) > 0, table + " row count");
         }
-        // nation and region are fixed by the spec at every scale factor.
+        // nation and region are fixed at every scale.
         assertEquals(25L, counts.get("nation"));
         assertEquals(5L, counts.get("region"));
     }

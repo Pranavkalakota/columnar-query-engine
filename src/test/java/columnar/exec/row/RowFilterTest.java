@@ -28,7 +28,7 @@ class RowFilterTest {
     private static final Schema SCHEMA = Schema.of(
             Field.of("a", DataType.INT64), Field.of("b", DataType.DOUBLE));
 
-    /** Deliberately includes NULLs in both columns, since NULL must reject like FALSE. */
+    /** NULLs in both columns, since NULL rejects. */
     private static final String CSV = """
             1,1.5
             2,
@@ -102,7 +102,7 @@ class RowFilterTest {
     @Test
     @DisplayName("a NULL predicate rejects the row, exactly as FALSE does")
     void nullRejectsLikeFalse(@TempDir Path dir) throws IOException {
-        // b is NULL on three rows; b > 0 is NULL there, so those rows must not pass.
+        // b is NULL on three rows.
         Path file = csvFile(dir);
         List<List<Object>> passed = runFilter(file,
                 Expr.col("b").binary(BinaryOp.GREATER, Expr.lit(0.0)), 4);

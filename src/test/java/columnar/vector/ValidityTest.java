@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class ValidityTest {
 
-    /** Sizes that straddle the 64-bit word boundary, where off-by-one bugs live. */
+    /** Sizes that straddle the 64-bit word boundary. */
     private static final int[] SIZES = {0, 1, 2, 7, 63, 64, 65, 127, 128, 129, 1023, 1024, 1025};
 
     @Test

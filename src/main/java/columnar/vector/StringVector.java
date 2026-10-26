@@ -4,7 +4,7 @@ import columnar.types.DataType;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
-/** VARCHAR storage: one UTF-8 byte pool plus offsets. Append in row order. */
+/** VARCHAR storage: one UTF-8 byte pool plus offsets. */
 public final class StringVector extends ColumnVector {
 
     private static final int DEFAULT_BYTES_PER_VALUE = 16;
@@ -63,7 +63,7 @@ public final class StringVector extends ColumnVector {
         setNull(row);
     }
 
-    /** The byte length of a row. Zero for both an empty string and a NULL. */
+    /** The byte length of a row. */
     public int byteLength(int index) {
         checkRow(index);
         return offsets[index + 1] - offsets[index];
@@ -75,7 +75,7 @@ public final class StringVector extends ColumnVector {
         return new String(data, offsets[index], byteLength(index), StandardCharsets.UTF_8);
     }
 
-    /** Rejects rows never appended, whose offsets still hold the previous batch. */
+    /** Rejects rows that were never appended. */
     private void checkRow(int index) {
         if (index < 0 || index >= written) {
             throw new IndexOutOfBoundsException("row " + index + " of " + written + " appended");
@@ -88,7 +88,7 @@ public final class StringVector extends ColumnVector {
         }
     }
 
-    /** Reallocates the offsets when too small and restarts the byte pool. */
+    /** Grows the offsets and restarts the pool. */
     @Override
     protected void growValues(int capacity) {
         if (offsets.length < capacity + 1) {

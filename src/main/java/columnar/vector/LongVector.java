@@ -12,7 +12,7 @@ public final class LongVector extends ColumnVector {
         this.values = new long[capacity];
     }
 
-    /** The raw array. May be longer than capacity after a shrink. */
+    /** The raw array. */
     public long[] values() {
         return values;
     }

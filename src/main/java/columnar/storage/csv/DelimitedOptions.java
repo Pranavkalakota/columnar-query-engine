@@ -3,7 +3,7 @@ package columnar.storage.csv;
 /** How to split a delimited file into records and fields. */
 public record DelimitedOptions(byte delimiter, byte quote, boolean trailingDelimiter) {
 
-    /** Marker for a format without quoting, so no byte is treated as special. */
+    /** Marker for a format without quoting. */
     public static final byte NO_QUOTE = 0;
 
     public DelimitedOptions {
@@ -29,7 +29,7 @@ public record DelimitedOptions(byte delimiter, byte quote, boolean trailingDelim
         return quote != NO_QUOTE;
     }
 
-    /** A copy with a different delimiter, for pipe-separated files that are otherwise CSV. */
+    /** A copy with a different delimiter. */
     public DelimitedOptions withDelimiter(char delimiter) {
         return new DelimitedOptions((byte) delimiter, quote, trailingDelimiter);
     }
