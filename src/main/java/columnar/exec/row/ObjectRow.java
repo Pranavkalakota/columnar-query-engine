@@ -1,5 +1,7 @@
 package columnar.exec.row;
 
+import columnar.types.DataType;
+import columnar.types.Dates;
 import columnar.types.Schema;
 
 /** A row of boxed values. */
@@ -52,8 +54,11 @@ public final class ObjectRow implements Row {
         return (String) values[column];
     }
 
+    /** A DATE shows as a LocalDate, matching the tuned engine. */
     @Override
     public Object get(int column) {
-        return values[column];
+        Object value = values[column];
+        return value instanceof Integer day && schema.type(column) == DataType.DATE
+                ? Dates.toLocalDate(day) : value;
     }
 }
