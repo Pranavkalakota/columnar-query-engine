@@ -49,7 +49,7 @@ public final class Q6Benchmark {
                 Expr.col("l_quantity").binary(BinaryOp.LESS, Expr.lit(24.0)));
     }
 
-    /** Builds Q6 over the given scan and runs it to completion. */
+    /** Builds Q6 over a scan and runs it. */
     public static Object runQ6(RowOperator scan) {
         Expr revenue = Expr.col("l_extendedprice").binary(BinaryOp.MULTIPLY, Expr.col("l_discount"));
         RowAggregate op = new RowAggregate(new RowFilter(scan, predicate()),

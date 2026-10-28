@@ -35,7 +35,7 @@ public final class BoxedRowScan implements RowOperator {
         opened = true;
     }
 
-    /** Allocates a row each call, which is the cost being measured. */
+    /** Allocates a row each call, the cost measured. */
     @Override
     public Row next() {
         if (!opened) {
@@ -58,7 +58,7 @@ public final class BoxedRowScan implements RowOperator {
         return null;
     }
 
-    /** A DATE boxes as its epoch day, matching the tuned engine. */
+    /** A DATE boxes as its epoch day. */
     private static Object box(ColumnVector column, int row, DataType type) {
         if (column.isNull(row)) {
             return null;

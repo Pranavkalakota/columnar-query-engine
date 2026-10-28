@@ -30,9 +30,7 @@ public final class Benchmark {
         }
     }
 
-    /**
-     * Runs warmups, discards them, then times each measured run.
-     */
+    /** Runs warmups, discards them, then times each run. */
     public static Result measure(String name, int warmups, int runs, Supplier<?> task) {
         if (runs < 1) {
             throw new IllegalArgumentException("need at least one measured run");
@@ -52,7 +50,7 @@ public final class Benchmark {
                 times.get(times.size() - 1), sink);
     }
 
-    /** Hardware and JVM, so a number is never quoted without them. */
+    /** Hardware and JVM, recorded beside every number. */
     public static String environment() {
         Runtime r = Runtime.getRuntime();
         return "%s %s, %d cores, max heap %d MB".formatted(
