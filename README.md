@@ -51,9 +51,12 @@ Work in progress. What is in the repository so far:
 Not built yet: the execution operators, the columnar file format, the SQL
 frontend, the optimizer, the Parquet reader, and parallel execution.
 
-**There are no benchmark numbers here yet.** Every number that eventually lands
-in this README will come from a reproducible run on stated hardware. Until
-then, nothing is claimed.
+**First measured result.** On TPC-H Q6 at scale factor 0.1 (600,572 rows, in
+memory, single thread), the tuned row engine runs in 25.6 ms against the boxed
+engine's 129.1 ms, about **5x faster**, with both returning the same revenue as
+DuckDB. That is the cost of boxing and per-row allocation, not the vectorized
+speedup, which needs an engine that does not exist yet. Method, hardware and
+caveats are in `docs/BENCHMARKS.md`.
 
 ## Three execution engines, one plan
 
