@@ -10,7 +10,7 @@ public interface VectorOperator extends AutoCloseable {
 
     void open();
 
-    /** The next batch, or null at end. An empty batch is not the end. */
+    /** The next batch, or null at end. */
     VectorBatch next();
 
     @Override
