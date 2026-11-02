@@ -12,6 +12,9 @@ import columnar.exec.row.Row;
 import columnar.exec.row.RowAggregate;
 import columnar.exec.row.RowFilter;
 import columnar.exec.row.RowScan;
+import columnar.exec.vec.VectorAggregate;
+import columnar.exec.vec.VectorFilter;
+import columnar.exec.vec.VectorScan;
 import columnar.expr.BinaryOp;
 import columnar.expr.Expr;
 import columnar.storage.InMemoryTable;
@@ -19,6 +22,7 @@ import columnar.storage.csv.DelimitedOptions;
 import columnar.types.DataType;
 import columnar.types.Field;
 import columnar.types.Schema;
+import columnar.vector.VectorBatch;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -73,6 +77,20 @@ class TpchQ6Test {
         }
     }
 
+    /** The same query on the vectorized operators. */
+    private static Object runQ6Vector(Path tbl, int batchSize) throws IOException {
+        InMemoryTable table = InMemoryTable.load(tbl, LINEITEM, DelimitedOptions.tbl(), batchSize);
+        Expr revenue = Expr.col("l_extendedprice").binary(BinaryOp.MULTIPLY, Expr.col("l_discount"));
+        try (VectorAggregate op = new VectorAggregate(
+                new VectorFilter(new VectorScan(table), q6Predicate()),
+                List.of(Aggregate.sum(revenue, "revenue")))) {
+            op.open();
+            VectorBatch batch = op.next();
+            assertNotNull(batch, "ungrouped aggregation always yields a row");
+            return batch.column(0).valueAt(0);
+        }
+    }
+
     @Test
     @DisplayName("TPC-H Q6 matches DuckDB at SF0.01, at every batch size")
     void q6MatchesTheOracle(@TempDir Path dir) throws IOException {
@@ -88,6 +106,11 @@ class TpchQ6Test {
                         List.of(List.of(runQ6(tbl, batchSize))));
                 var diff = comparator.compare(expected, actual, true);
                 assertTrue(diff.isEmpty(), "batch " + batchSize + ": " + diff.orElse(""));
+                ResultTable vectorized = ResultTable.of(List.of("revenue"),
+                        List.of(List.of(runQ6Vector(tbl, batchSize))));
+                var vectorDiff = comparator.compare(expected, vectorized, true);
+                assertTrue(vectorDiff.isEmpty(), "vector batch " + batchSize + ": " + vectorDiff.orElse(""));
+                assertEquals(runQ6(tbl, batchSize), runQ6Vector(tbl, batchSize), "engines must agree exactly");
             }
         }
     }

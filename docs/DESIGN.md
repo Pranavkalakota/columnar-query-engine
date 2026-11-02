@@ -185,6 +185,52 @@ to indexes once, when the evaluator is built, rather than looking them up per
 row; a baseline that did schema lookups inside the loop would lose for a reason
 that has nothing to do with being row-at-a-time.
 
+## A predicate compiles to a chain, not to a boolean vector
+
+`a AND b AND c` never produces a boolean vector. Each conjunct is compiled to
+a kernel, and the kernels run in sequence: the first writes the rows that pass
+into a selection array, and each later one reads that array and overwrites it
+with the shorter list of rows that still pass. By the third kernel the loop is
+visiting 2% of the rows rather than all of them, which is where most of the
+win on Q6 comes from.
+
+Narrowing in place is safe because of how the kernels are written. Reading
+position `i` of the selection, a kernel has written at most `i` survivors, so
+the write cursor never passes the read cursor. One array per filter does the
+whole chain, with no second buffer and no copying between stages.
+
+The compiler refuses what it has no kernel for rather than guessing. A
+comparison between two columns, an `=` on a double, a `NULL` literal: each
+raises `UnsupportedOperationException` at plan time, where a caller can see it
+and fall back, rather than part-way through a scan. The one case worth calling
+out is a fractional literal against an int column. `linenumber < 2.5` is a
+legitimate query, and truncating 2.5 to 2 would silently drop every row where
+`linenumber = 2`. It is refused instead.
+
+## The vectorized sum folds in the same order as the row engine
+
+Floating-point addition is not associative, so a vectorized sum that
+accumulated per batch and combined at the end would disagree with the row
+engine in the last few bits. The benchmark would then have to compare with a
+tolerance, and a tolerance hides exactly the kind of bug worth catching.
+
+So `RunningSum` keeps one running total across every batch, in row order,
+which is the order the row engine uses. The loop reads that total into a local
+and writes it back once at the end, so the JIT can keep it in a register
+without changing the arithmetic. The two engines return the same `double`, bit
+for bit, and the benchmark asserts equality rather than closeness.
+
+`SUM(price * discount)` never materializes the product. There is no temporary
+vector of products; the kernel multiplies and accumulates in one pass.
+
+## Counting is not the same as summing
+
+`SUM` over zero rows is `NULL` in SQL, not zero, and the two are different
+answers. `RunningSum` therefore tracks a count alongside the total, so an
+empty input is distinguishable from an input that genuinely sums to zero.
+`COUNT(*)` reads `selectedCount()`, which is the length of the selection when
+one is set and the row count when it is not.
+
 ## Known divergences from the oracle
 
 - `SUM` over an integer column returns `INT64` here and `HUGEINT` in DuckDB.

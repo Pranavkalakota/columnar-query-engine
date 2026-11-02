@@ -7,6 +7,9 @@ import columnar.exec.row.RowAggregate;
 import columnar.exec.row.RowFilter;
 import columnar.exec.row.RowOperator;
 import columnar.exec.row.RowScan;
+import columnar.exec.vec.VectorAggregate;
+import columnar.exec.vec.VectorFilter;
+import columnar.exec.vec.VectorScan;
 import columnar.expr.BinaryOp;
 import columnar.expr.Expr;
 import columnar.storage.InMemoryTable;
@@ -14,6 +17,7 @@ import columnar.storage.csv.DelimitedOptions;
 import columnar.types.DataType;
 import columnar.types.Field;
 import columnar.types.Schema;
+import columnar.vector.VectorBatch;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -61,6 +65,19 @@ public final class Q6Benchmark {
         return result;
     }
 
+    /** The same query, batch at a time. */
+    public static Object runQ6Vector(InMemoryTable table) {
+        Expr revenue = Expr.col("l_extendedprice").binary(BinaryOp.MULTIPLY, Expr.col("l_discount"));
+        VectorAggregate op = new VectorAggregate(
+                new VectorFilter(new VectorScan(table), predicate()),
+                List.of(Aggregate.sum(revenue, "revenue")));
+        op.open();
+        VectorBatch batch = op.next();
+        Object result = batch == null ? null : batch.column(0).valueAt(0);
+        op.close();
+        return result;
+    }
+
     public static void main(String[] args) throws IOException {
         Path tbl = Path.of(args.length > 0 ? args[0] : "data/sf0.01").resolve("lineitem.tbl");
         int warmups = args.length > 1 ? Integer.parseInt(args[1]) : 5;
@@ -78,13 +95,23 @@ public final class Q6Benchmark {
                 () -> runQ6(name.equals("ROW_BOXED") ? new BoxedRowScan(table) : new RowScan(table)));
         Benchmark.Result boxed = measure.apply("ROW_BOXED");
         Benchmark.Result tuned = measure.apply("ROW_TUNED");
+        Benchmark.Result vector = Benchmark.measure("VECTOR", warmups, runs, () -> runQ6Vector(table));
 
         System.out.println(boxed);
         System.out.println(tuned);
-        if (!boxed.last().equals(tuned.last())) {
-            throw new IllegalStateException("engines disagree: " + boxed.last() + " vs " + tuned.last());
-        }
-        System.out.printf("revenue %s (both engines agree)%n", tuned.last());
+        System.out.println(vector);
+        agree(boxed.last(), tuned.last());
+        agree(tuned.last(), vector.last());
+        System.out.printf("revenue %s (all three engines agree)%n", vector.last());
         System.out.printf("ROW_TUNED is %.2fx faster than ROW_BOXED%n", boxed.relativeTo(tuned));
+        System.out.printf("VECTOR is %.2fx faster than ROW_TUNED%n", tuned.relativeTo(vector));
+        System.out.printf("VECTOR is %.2fx faster than ROW_BOXED%n", boxed.relativeTo(vector));
+    }
+
+    /** A benchmark that measures the wrong answer measures nothing. */
+    private static void agree(Object left, Object right) {
+        if (!left.equals(right)) {
+            throw new IllegalStateException("engines disagree: " + left + " vs " + right);
+        }
     }
 }
