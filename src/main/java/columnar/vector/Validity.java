@@ -68,6 +68,11 @@ public final class Validity {
         words[index >>> 6] |= 1L << (index & 63);
     }
 
+    /** The backing words, so kernels avoid a call per row. */
+    public long[] words() {
+        return words;
+    }
+
     private void checkIndex(int index) {
         if (index < 0 || index >= capacity) {
             throw new IndexOutOfBoundsException("row " + index + " outside 0.." + (capacity - 1));
