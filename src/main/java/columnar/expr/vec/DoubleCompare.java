@@ -52,6 +52,25 @@ public final class DoubleCompare {
         return k;
     }
 
+    public static int le(double[] v, double c, Validity nulls, int n, int[] out) {
+        int k = 0;
+        if (!nulls.mayHaveNulls()) {
+            for (int i = 0; i < n; i++) {
+                if (v[i] <= c) {
+                    out[k++] = i;
+                }
+            }
+            return k;
+        }
+        long[] w = nulls.words();
+        for (int i = 0; i < n; i++) {
+            if (v[i] <= c && valid(w, i)) {
+                out[k++] = i;
+            }
+        }
+        return k;
+    }
+
     public static int le(double[] v, double c, Validity nulls, int[] sel, int n, int[] out) {
         int k = 0;
         if (!nulls.mayHaveNulls()) {
@@ -68,6 +87,25 @@ public final class DoubleCompare {
             int r = sel[i];
             if (v[r] <= c && valid(w, r)) {
                 out[k++] = r;
+            }
+        }
+        return k;
+    }
+
+    public static int ge(double[] v, double c, Validity nulls, int n, int[] out) {
+        int k = 0;
+        if (!nulls.mayHaveNulls()) {
+            for (int i = 0; i < n; i++) {
+                if (v[i] >= c) {
+                    out[k++] = i;
+                }
+            }
+            return k;
+        }
+        long[] w = nulls.words();
+        for (int i = 0; i < n; i++) {
+            if (v[i] >= c && valid(w, i)) {
+                out[k++] = i;
             }
         }
         return k;

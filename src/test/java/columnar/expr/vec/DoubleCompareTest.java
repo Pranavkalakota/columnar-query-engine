@@ -65,8 +65,12 @@ class DoubleCompareTest {
                     head(out, DoubleCompare.lt(v, c, nulls, size, out)), where + " dense lt");
             assertArrayEquals(reference(v, isNull, sel, size, x -> x < c),
                     head(out, DoubleCompare.lt(v, c, nulls, sel, size, out)), where + " lt");
+            assertArrayEquals(reference(v, isNull, null, size, x -> x <= c),
+                    head(out, DoubleCompare.le(v, c, nulls, size, out)), where + " dense le");
             assertArrayEquals(reference(v, isNull, sel, size, x -> x <= c),
                     head(out, DoubleCompare.le(v, c, nulls, sel, size, out)), where + " le");
+            assertArrayEquals(reference(v, isNull, null, size, x -> x >= c),
+                    head(out, DoubleCompare.ge(v, c, nulls, size, out)), where + " dense ge");
             assertArrayEquals(reference(v, isNull, sel, size, x -> x >= c),
                     head(out, DoubleCompare.ge(v, c, nulls, sel, size, out)), where + " ge");
         }
@@ -96,6 +100,8 @@ class DoubleCompareTest {
         assertArrayEquals(new int[] {0, 2}, head(out, DoubleCompare.ge(v, 1.0, nulls, sel, 4, out)));
         assertArrayEquals(new int[] {0, 2}, head(out, DoubleCompare.le(v, 2.0, nulls, sel, 4, out)));
         assertEquals(2, DoubleCompare.lt(v, 9.0, nulls, 4, out), "dense path drops nulls too");
+        assertArrayEquals(new int[] {0, 2}, head(out, DoubleCompare.le(v, 2.0, nulls, 4, out)), "dense le");
+        assertArrayEquals(new int[] {0, 2}, head(out, DoubleCompare.ge(v, 1.0, nulls, 4, out)), "dense ge");
     }
 
     @Test
@@ -118,5 +124,6 @@ class DoubleCompareTest {
         int[] out = new int[2];
         assertArrayEquals(new int[] {1}, head(out, DoubleCompare.lt(v, 9.0, nulls, 2, out)));
         assertArrayEquals(new int[] {1}, head(out, DoubleCompare.ge(v, 0.0, nulls, new int[] {0, 1}, 2, out)));
+        assertArrayEquals(new int[] {1}, head(out, DoubleCompare.le(v, 9.0, nulls, 2, out)), "dense le drops NaN");
     }
 }
