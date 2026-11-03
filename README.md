@@ -30,28 +30,17 @@ MonetDB/X100 (Boncz, Zukowski, Nes, CIDR 2005).
 
 Work in progress. What is in the repository so far:
 
-- Typed columnar vectors over primitive arrays, with one-bit-per-row null
-  tracking, recycled batches, and a selection vector so a filter narrows a
-  batch instead of copying the rows that survived
-- Strings held as a single UTF-8 byte pool plus offsets, so a batch of a
-  thousand values is two arrays rather than a thousand objects
-- The type system the rest of the engine resolves against: types and their
-  promotion rules, fields, schemas with case-insensitive lookup and ambiguity
-  detection, and date conversions
-- A loader for TPC-H `.tbl` and for CSV, which reads fields as byte ranges out
-  of a shared buffer rather than building strings: quoted fields spanning
-  delimiters and newlines, both line endings, records larger than the buffer,
-  and numbers parsed straight from the bytes
-- In-memory tables, so a file is parsed once and the same batches are scanned
-  repeatedly
-- DuckDB wired in as a differential-testing oracle, with result comparison that
-  handles unordered results, a relative tolerance on floats, and NULL equality
+- Typed columnar vectors over primitive arrays, with null bitmaps
+- Recycled batches, narrowed by a selection vector rather than copied
+- Strings as one UTF-8 byte pool plus offsets, not an object per value
+- Types, promotion rules, fields, schemas, and date conversions
+- A zero-copy loader for TPC-H `.tbl` and CSV, reading fields as byte ranges
+- In-memory tables, so a file is parsed once and scanned repeatedly
+- DuckDB wired in as a differential-testing oracle, with result comparison
 - TPC-H data generation at any scale factor, as Parquet and `.tbl`
-- An expression tree, and two row-at-a-time engines over it: a boxed Volcano
-  baseline and a tuned one reading primitives from the same columnar batches
-- Scan, filter and ungrouped aggregation on all three engines, with the
-  vectorized filter compiling a conjunction into a chain of kernels that
-  narrow a selection in place rather than producing a boolean vector
+- An expression tree, and two row-at-a-time engines over it
+- Scan, filter and ungrouped aggregation on all three engines
+- A vectorized filter that compiles a conjunction into a chain of kernels
 
 Not built yet: grouped aggregation, joins, sorting, the columnar file format,
 the SQL frontend, the optimizer, the Parquet reader, and parallel execution.

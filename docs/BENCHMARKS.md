@@ -6,16 +6,11 @@ method that produced it.
 
 ## Method
 
-- The table is loaded into memory **once, before timing starts**, so these
-  measure execution and not file parsing.
-- Warmup runs are discarded, so HotSpot has compiled the hot paths before
-  anything is recorded.
-- The median of the measured runs is reported, with min and max so variance
-  is visible rather than hidden.
-- The benchmark refuses to print a result if any two engines disagree on the
-  answer, so a faster-but-wrong engine cannot be reported as a win.
-- Fixed heap (`-Xms4g -Xmx4g -XX:+AlwaysPreTouch`) to keep GC out of the
-  comparison.
+- The table is loaded into memory **once, before timing starts**.
+- 8 warmup runs, discarded, so HotSpot has compiled the hot paths.
+- 15 measured runs; the median is reported, with min and max.
+- The benchmark refuses to print a result if any two engines disagree.
+- Fixed heap (`-Xms4g -Xmx4g -XX:+AlwaysPreTouch`) to keep GC out.
 
 Reproduce with:
 
@@ -79,12 +74,9 @@ row-at-a-time interpreter" is what was measured.
 
 Three further things help the vector engine, and are worth naming:
 
-- Q6 is highly selective (about 2% of rows survive), so after the first
-  kernel the rest of the chain runs over a short selection vector.
-- Selections narrow in place. A filter never copies a column, so a surviving
-  row is an `int` in an array, not a row of data moved somewhere else.
-- `lineitem` has no nulls, so every kernel takes its no-null fast path. The
-  null paths are tested but are not what these numbers measure.
+- Q6 keeps only about 2% of rows, so the chain runs over a short selection.
+- Selections narrow in place; a filter never copies a column.
+- `lineitem` has no nulls, so every kernel takes its no-null fast path.
 
 Not yet measured: any scale factor above 0.1, cold cache, multiple threads, a
 comparison against DuckDB's own execution time, or anything with a `GROUP BY`.
