@@ -47,22 +47,32 @@ Work in progress. What is in the repository so far:
 - DuckDB wired in as a differential-testing oracle, with result comparison that
   handles unordered results, a relative tolerance on floats, and NULL equality
 - TPC-H data generation at any scale factor, as Parquet and `.tbl`
+- An expression tree, and two row-at-a-time engines over it: a boxed Volcano
+  baseline and a tuned one reading primitives from the same columnar batches
+- Scan, filter and ungrouped aggregation on all three engines, with the
+  vectorized filter compiling a conjunction into a chain of kernels that
+  narrow a selection in place rather than producing a boolean vector
 
-Not built yet: the execution operators, the columnar file format, the SQL
-frontend, the optimizer, the Parquet reader, and parallel execution.
+Not built yet: grouped aggregation, joins, sorting, the columnar file format,
+the SQL frontend, the optimizer, the Parquet reader, and parallel execution.
 
-**First measured result.** On TPC-H Q6 at scale factor 0.1 (600,572 rows, in
-memory, single thread), the tuned row engine runs in 25.6 ms against the boxed
-engine's 129.1 ms, about **5x faster**, with both returning the same revenue as
-DuckDB. That is the cost of boxing and per-row allocation, not the vectorized
-speedup, which needs an engine that does not exist yet. Method, hardware and
-caveats are in `docs/BENCHMARKS.md`.
+**Measured, on TPC-H Q6 at scale factor 0.1** (600,572 rows, in memory, single
+thread): the vectorized engine runs in 1.66 ms against the tuned row engine's
+24.33 ms and the boxed engine's 94.27 ms — **14.7x faster than the tuned row
+engine, 56.8x faster than the boxed one.** All three return the same revenue,
+the same `double` bit for bit, and it matches DuckDB.
+
+The tuned row engine interprets the expression tree once per row and boxes the
+intermediates, so that 14.7x covers removing interpretation and allocation as
+well as batching — it is not attributable to SIMD alone. Method, hardware and
+the rest of the caveats are in `docs/BENCHMARKS.md`.
 
 ## Three execution engines, one plan
 
-Three engines are planned. The logical plan, the optimizer and the storage
-readers will be shared, so only the physical operators differ, which isolates
-the single variable the benchmark is about: the execution model.
+All three engines run scans, filters and ungrouped aggregation today. They
+share the expression tree and the same in-memory batches, so only the physical
+operators differ, which isolates the single variable the benchmark is about:
+the execution model.
 
 | Engine | Description | Why it exists |
 |---|---|---|
@@ -70,7 +80,7 @@ the single variable the benchmark is about: the execution model.
 | `ROW_TUNED` | Volcano model, primitive getters, type-specialized expressions | the honest baseline |
 | `VECTOR` | Batch-at-a-time with selection vectors and kernels | the point of the project |
 
-Speedups will be reported against both row engines, not just the boxed one.
+Speedups are reported against both row engines, not just the boxed one.
 
 ## Correctness approach
 
@@ -120,9 +130,11 @@ land within a stated factor and explain the gap.
 
 ## Intended layout
 
-Where the pieces are meant to go. Today `types/`, `vector/` and
-`storage/csv/` exist, along with the differential tests under `src/test`; the
-rest is the target.
+Where the pieces are meant to go. Today `types/`, `vector/`, `storage/csv/`,
+`expr/` (with `expr/vec/` kernels) and `exec/` (`row/`, `vec/` and `agg/`)
+exist, along with the differential tests and benchmarks under `src/test`;
+`plan/`, `sql/`, `cli/`, `storage/colfile/` and `storage/parquet/` are the
+target.
 
 ```
 src/main/java/columnar/
