@@ -231,6 +231,63 @@ empty input is distinguishable from an input that genuinely sums to zero.
 `COUNT(*)` reads `selectedCount()`, which is the length of the selection when
 one is set and the row count when it is not.
 
+## Group keys are copied out of the batch, not pointed at
+
+Batches are recycled, so a group's key cannot be a reference into the batch it
+arrived in: by the next batch those bytes are something else. Each key column
+therefore keeps its own copy, one entry per group, appended the first time a
+group is seen. Strings go into a private byte pool with offsets, the same
+layout `StringVector` uses, so a key comparison is a byte-range compare and no
+`String` is ever decoded on the grouping path.
+
+The table itself is open addressing with linear probing: a bucket array holding
+a group ordinal plus one, so zero means empty, and a parallel array of each
+group's hash. Comparing the stored hash before the key means a probe that
+collides in the bucket array usually costs one `int` compare rather than a walk
+over the key columns. It grows at half full, which keeps probe chains short at
+the cost of memory the aggregate already needs.
+
+Keys are ordinals, not objects. Every aggregate is then a plain array indexed
+by that ordinal, which is what makes folding a batch a loop over primitives.
+
+## Doubles are refused as group keys
+
+`GROUP BY` on a `DOUBLE` compiles to nothing and raises instead. Grouping is
+equality, and equality on floating point is the wrong question to ask: 0.1 + 0.2
+and 0.3 are different keys, and two values that print identically can land in
+different groups. SQL engines do allow it, and this one may later, but refusing
+it is better than silently producing groups a reader cannot explain. Integers,
+dates and strings cover every TPC-H `GROUP BY`.
+
+## NULL is a group, and an empty input is no rows at all
+
+A NULL key is its own group rather than a dropped row, which is what SQL does
+and the opposite of what a filter does with NULL. The store records a per-group
+null flag alongside the value, so a NULL key and a zero-length string stay
+distinct.
+
+An ungrouped aggregate over an empty input returns one row of NULLs; a grouped
+aggregate over an empty input returns **no rows at all**. Both are tested,
+because the two operators disagreeing here would be easy to get wrong and
+invisible until a query returned a phantom row.
+
+## Grouped results come out in batches
+
+The operator drains its child, then emits groups a batch at a time rather than
+one batch however large. A `GROUP BY` on a high-cardinality column can produce
+millions of groups, and materializing them in a single batch would undo the
+point of a batch-at-a-time engine. Emission size is a constructor argument, and
+the tests run the same query at 7 and at 1024 to prove the chunking changes
+nothing.
+
+## There is no grouped speedup number, on purpose
+
+`RowAggregate` is ungrouped only, so there is no row-at-a-time grouped
+aggregate to measure against. A timing for the vectorized version alone would
+be a throughput figure with nothing to compare it to, which is not a speedup
+and would be quoted as one. The number arrives when a row-side grouped
+aggregate does.
+
 ## Known divergences from the oracle
 
 - `SUM` over an integer column returns `INT64` here and `HUGEINT` in DuckDB.

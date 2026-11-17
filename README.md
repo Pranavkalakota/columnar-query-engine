@@ -41,9 +41,11 @@ Work in progress. What is in the repository so far:
 - An expression tree, and two row-at-a-time engines over it
 - Scan, filter and ungrouped aggregation on all three engines
 - A vectorized filter that compiles a conjunction into a chain of kernels
+- Hash `GROUP BY` on int, date, long and string keys, with COUNT, SUM and AVG
 
-Not built yet: grouped aggregation, joins, sorting, the columnar file format,
-the SQL frontend, the optimizer, the Parquet reader, and parallel execution.
+Not built yet: joins, sorting, a row-at-a-time grouped aggregate to benchmark
+against, the columnar file format, the SQL frontend, the optimizer, the Parquet
+reader, and parallel execution.
 
 **Measured, on TPC-H Q6 at scale factor 0.1** (600,572 rows, in memory, single
 thread): the vectorized engine runs in 1.66 ms against the tuned row engine's
