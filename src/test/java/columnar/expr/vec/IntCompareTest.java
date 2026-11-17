@@ -70,6 +70,10 @@ class IntCompareTest {
                     head(out, IntCompare.ge(v, c, nulls, sel, size, out)), where + " ge");
             assertArrayEquals(reference(v, isNull, sel, size, x -> x < c),
                     head(out, IntCompare.lt(v, c, nulls, sel, size, out)), where + " lt");
+            assertArrayEquals(reference(v, isNull, null, size, x -> x <= c),
+                    head(out, IntCompare.le(v, c, nulls, size, out)), where + " dense le");
+            assertArrayEquals(reference(v, isNull, sel, size, x -> x <= c),
+                    head(out, IntCompare.le(v, c, nulls, sel, size, out)), where + " le");
         }
     }
 

@@ -146,7 +146,7 @@ public final class PredicateCompiler {
     private record IntKernel(int index, BinaryOp op, int constant) implements BatchPredicate {
 
         IntKernel {
-            requireOp(op, BinaryOp.LESS, BinaryOp.GREATER_OR_EQUAL);
+            requireOp(op, BinaryOp.LESS, BinaryOp.LESS_OR_EQUAL, BinaryOp.GREATER_OR_EQUAL);
         }
 
         @Override
@@ -154,9 +154,11 @@ public final class PredicateCompiler {
             IntVector column = (IntVector) batch.column(index);
             int[] values = column.values();
             Validity nulls = column.validity();
-            return op == BinaryOp.LESS
-                    ? IntCompare.lt(values, constant, nulls, n, out)
-                    : IntCompare.ge(values, constant, nulls, n, out);
+            return switch (op) {
+                case LESS -> IntCompare.lt(values, constant, nulls, n, out);
+                case LESS_OR_EQUAL -> IntCompare.le(values, constant, nulls, n, out);
+                default -> IntCompare.ge(values, constant, nulls, n, out);
+            };
         }
 
         @Override
@@ -164,9 +166,11 @@ public final class PredicateCompiler {
             IntVector column = (IntVector) batch.column(index);
             int[] values = column.values();
             Validity nulls = column.validity();
-            return op == BinaryOp.LESS
-                    ? IntCompare.lt(values, constant, nulls, sel, n, out)
-                    : IntCompare.ge(values, constant, nulls, sel, n, out);
+            return switch (op) {
+                case LESS -> IntCompare.lt(values, constant, nulls, sel, n, out);
+                case LESS_OR_EQUAL -> IntCompare.le(values, constant, nulls, sel, n, out);
+                default -> IntCompare.ge(values, constant, nulls, sel, n, out);
+            };
         }
     }
 }
