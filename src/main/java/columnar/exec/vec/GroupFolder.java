@@ -1,6 +1,6 @@
 package columnar.exec.vec;
 
-import columnar.vector.DoubleVector;
+import columnar.expr.vec.DoubleKernel;
 import columnar.vector.VectorBatch;
 import java.util.Arrays;
 
@@ -19,9 +19,9 @@ abstract class GroupFolder {
         return new Counter();
     }
 
-    /** SUM or AVG, over a column or a product. */
-    static GroupFolder sums(int left, int right, boolean mean) {
-        return new Sums(left, right, mean);
+    /** SUM or AVG over any compiled double expression. */
+    static GroupFolder sums(DoubleKernel kernel, boolean mean) {
+        return new Sums(kernel, mean);
     }
 
     private static final class Counter extends GroupFolder {
@@ -48,15 +48,15 @@ abstract class GroupFolder {
     }
 
     private static final class Sums extends GroupFolder {
-        private final int left;
-        private final int right;
+        private final DoubleKernel kernel;
         private final boolean mean;
         private double[] sums = new double[64];
         private long[] counts = new long[64];
+        private double[] values = new double[0];
+        private boolean[] valid = new boolean[0];
 
-        Sums(int left, int right, boolean mean) {
-            this.left = left;
-            this.right = right;
+        Sums(DoubleKernel kernel, boolean mean) {
+            this.kernel = kernel;
             this.mean = mean;
         }
 
@@ -71,20 +71,17 @@ abstract class GroupFolder {
 
         @Override
         void fold(VectorBatch batch, int[] ordinals, int rows) {
-            DoubleVector a = (DoubleVector) batch.column(left);
-            DoubleVector b = right < 0 ? null : (DoubleVector) batch.column(right);
-            double[] first = a.values();
-            double[] second = b == null ? null : b.values();
-            int[] sel = batch.selection();
-            boolean checkNulls = a.mayHaveNulls() || (b != null && b.mayHaveNulls());
+            if (values.length < rows) {
+                values = new double[rows];
+                valid = new boolean[rows];
+            }
+            boolean all = kernel.evaluate(batch, batch.selection(), rows, values, valid);
             for (int i = 0; i < rows; i++) {
-                int row = sel == null ? i : sel[i];
-                if (checkNulls && (a.isNull(row) || (b != null && b.isNull(row)))) {
-                    continue;
+                if (all || valid[i]) {
+                    int group = ordinals[i];
+                    sums[group] += values[i];
+                    counts[group]++;
                 }
-                int group = ordinals[i];
-                sums[group] += second == null ? first[row] : first[row] * second[row];
-                counts[group]++;
             }
         }
 

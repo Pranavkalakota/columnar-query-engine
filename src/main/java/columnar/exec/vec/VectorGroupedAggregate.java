@@ -2,8 +2,7 @@ package columnar.exec.vec;
 
 import columnar.exec.agg.Aggregate;
 import columnar.exec.agg.AggregateFunction;
-import columnar.expr.BinaryOp;
-import columnar.expr.Expr;
+import columnar.expr.vec.DoubleCompiler;
 import columnar.types.DataType;
 import columnar.types.Field;
 import columnar.types.Schema;
@@ -132,25 +131,8 @@ public final class VectorGroupedAggregate implements VectorOperator {
         if (aggregate.resultType(input) != DataType.DOUBLE) {
             throw new UnsupportedOperationException("only double results have a kernel: " + aggregate);
         }
-        boolean mean = function == AggregateFunction.AVG;
-        Expr expr = aggregate.input();
-        if (expr instanceof Expr.ColumnRef ref) {
-            return GroupFolder.sums(doubleColumn(ref, input), -1, mean);
-        }
-        if (expr instanceof Expr.Binary binary && binary.op() == BinaryOp.MULTIPLY
-                && binary.left() instanceof Expr.ColumnRef left
-                && binary.right() instanceof Expr.ColumnRef right) {
-            return GroupFolder.sums(doubleColumn(left, input), doubleColumn(right, input), mean);
-        }
-        throw new UnsupportedOperationException("no kernel for " + function + "(" + expr + ")");
-    }
-
-    private static int doubleColumn(Expr.ColumnRef ref, Schema schema) {
-        int index = schema.requireIndexOf(ref.name());
-        if (schema.type(index) != DataType.DOUBLE) {
-            throw new UnsupportedOperationException("expected a double column: " + ref);
-        }
-        return index;
+        return GroupFolder.sums(DoubleCompiler.compile(aggregate.input(), input),
+                function == AggregateFunction.AVG);
     }
 
     @Override
