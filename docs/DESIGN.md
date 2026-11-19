@@ -288,6 +288,60 @@ be a throughput figure with nothing to compare it to, which is not a speedup
 and would be quoted as one. The number arrives when a row-side grouped
 aggregate does.
 
+## An arithmetic expression is a tree of kernels, each writing a whole vector
+
+`l_extendedprice * (1 - l_discount) * (1 + l_tax)` compiles to a small tree.
+Each node writes its values for the whole batch into a `double[]`, and a
+binary node evaluates its left child into the output buffer, its right child
+into a scratch buffer it owns, then combines them in one loop over primitives.
+The scratch buffers are allocated once per node and reused for every batch, so
+a query that runs a thousand times allocates them once.
+
+The alternative was fusing specific shapes, recognising `a * (1 - b)` and
+emitting a hand-written kernel for it. That is faster for the shapes it knows
+and useless for everything else, and TPC-H alone would need a dozen such
+special cases. A general tree costs one pass over a temporary array per
+operator and handles any expression.
+
+Replacing the hand-written `SUM(a)` and `SUM(a * b)` folders with this did not
+change a single digit of Q6's output: the kernel multiplies and sums in the
+same order the hand-written one did, which is the same order the row engine
+uses. That the number did not move is the evidence the change was safe.
+
+## Validity travels beside the values, and is skipped when it can be
+
+A node returns a boolean saying "every row I produced is valid", and only
+fills the validity array when that is false. A column with no nulls returns
+true without touching the mask, and a tree of such columns never writes
+validity at all. When one side of an operator has nulls and the other does
+not, the valid side's mask is never even read.
+
+This matters because `lineitem` has no nulls, so the whole Q1 expression tree
+takes the cheap path, while the null handling stays correct and tested rather
+than absent.
+
+## Integer arithmetic is refused, not widened
+
+Every node in a compiled expression must type as `DOUBLE`. An integer
+subexpression is rejected instead of being evaluated in floating point, even
+though doubles represent every int exactly up to 2^53. The reason is that
+integer arithmetic has different semantics the moment it overflows or divides,
+and silently computing it in another type is the kind of thing that produces a
+plausible wrong answer. Integer kernels can be added when a query needs them.
+
+## The row engine got a GROUP BY so the vector one could be measured
+
+`RowGroupedAggregate` exists to be the baseline, not because anything needs a
+slow `GROUP BY`. It is the textbook Volcano shape on purpose: a boxed
+`List<Object>` key per row into a `LinkedHashMap`, values through the same
+interpreter and accumulators the ungrouped row aggregate uses. Both row
+engines share it, exactly as they share `RowAggregate`, so the only thing that
+differs between `ROW_TUNED` and `VECTOR` is still the execution model.
+
+Writing a deliberately slower operator is worth it because the alternative was
+reporting a vectorized `GROUP BY` timing with nothing to compare it against,
+which is a throughput figure that reads like a speedup.
+
 ## Known divergences from the oracle
 
 - `SUM` over an integer column returns `INT64` here and `HUGEINT` in DuckDB.
