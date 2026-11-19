@@ -35,6 +35,7 @@ public final class Benchmark {
         if (runs < 1) {
             throw new IllegalArgumentException("need at least one measured run");
         }
+        settle();
         Object sink = null;
         for (int i = 0; i < warmups; i++) {
             sink = task.get();
@@ -48,6 +49,16 @@ public final class Benchmark {
         Collections.sort(times);
         return new Result(name, runs, times.get(times.size() / 2), times.get(0),
                 times.get(times.size() - 1), sink);
+    }
+
+    /** Clears the previous engine's garbage before timing this one. */
+    private static void settle() {
+        System.gc();
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /** Hardware and JVM, recorded beside every number. */
