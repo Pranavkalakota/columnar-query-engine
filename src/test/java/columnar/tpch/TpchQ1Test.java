@@ -7,6 +7,10 @@ import columnar.differential.DuckDbOracle;
 import columnar.differential.ResultComparator;
 import columnar.differential.ResultTable;
 import columnar.exec.agg.Aggregate;
+import columnar.exec.row.Row;
+import columnar.exec.row.RowFilter;
+import columnar.exec.row.RowGroupedAggregate;
+import columnar.exec.row.RowScan;
 import columnar.exec.vec.VectorFilter;
 import columnar.exec.vec.VectorGroupedAggregate;
 import columnar.exec.vec.VectorScan;
@@ -39,38 +43,55 @@ class TpchQ1Test {
             Field.of("l_shipmode", DataType.VARCHAR), Field.of("l_comment", DataType.VARCHAR));
 
     private static final List<String> COLUMNS = List.of("l_returnflag", "l_linestatus",
-            "count_order", "sum_qty", "sum_base_price", "avg_qty", "avg_price", "avg_disc");
+            "sum_qty", "sum_base_price", "sum_disc_price", "sum_charge",
+            "avg_qty", "avg_price", "avg_disc", "count_order");
 
-    /** TPC-H Q1 without its arithmetic columns. */
+    /** TPC-H Q1, every column, without its ORDER BY. */
     private static final String QUERY = """
             SELECT l_returnflag, l_linestatus,
-                   count(*) AS count_order,
                    sum(l_quantity) AS sum_qty,
                    sum(l_extendedprice) AS sum_base_price,
+                   sum(l_extendedprice * (1 - l_discount)) AS sum_disc_price,
+                   sum(l_extendedprice * (1 - l_discount) * (1 + l_tax)) AS sum_charge,
                    avg(l_quantity) AS avg_qty,
                    avg(l_extendedprice) AS avg_price,
-                   avg(l_discount) AS avg_disc
+                   avg(l_discount) AS avg_disc,
+                   count(*) AS count_order
             FROM lineitem
-            WHERE l_shipdate <= DATE '1998-09-02'
+            WHERE l_shipdate <= DATE '1998-12-01' - INTERVAL '90' day
             GROUP BY l_returnflag, l_linestatus
             """;
 
+    /** The Q1 cutoff: 1998-12-01 less ninety days. */
+    private static Expr predicate() {
+        return Expr.col("l_shipdate").binary(BinaryOp.LESS_OR_EQUAL, Expr.date("1998-09-02"));
+    }
+
+    /** l_extendedprice * (1 - l_discount), as Q1 writes it. */
+    private static Expr discounted() {
+        return Expr.col("l_extendedprice").binary(BinaryOp.MULTIPLY,
+                Expr.lit(1.0).binary(BinaryOp.SUBTRACT, Expr.col("l_discount")));
+    }
+
     private static List<Aggregate> aggregates() {
+        Expr charge = discounted().binary(BinaryOp.MULTIPLY,
+                Expr.lit(1.0).binary(BinaryOp.ADD, Expr.col("l_tax")));
         return List.of(
-                Aggregate.countStar("count_order"),
                 Aggregate.sum(Expr.col("l_quantity"), "sum_qty"),
                 Aggregate.sum(Expr.col("l_extendedprice"), "sum_base_price"),
+                Aggregate.sum(discounted(), "sum_disc_price"),
+                Aggregate.sum(charge, "sum_charge"),
                 Aggregate.avg(Expr.col("l_quantity"), "avg_qty"),
                 Aggregate.avg(Expr.col("l_extendedprice"), "avg_price"),
-                Aggregate.avg(Expr.col("l_discount"), "avg_disc"));
+                Aggregate.avg(Expr.col("l_discount"), "avg_disc"),
+                Aggregate.countStar("count_order"));
     }
 
     private static ResultTable runQ1(Path tbl, int batchSize, int outputBatch) throws IOException {
         InMemoryTable table = InMemoryTable.load(tbl, LINEITEM, DelimitedOptions.tbl(), batchSize);
-        Expr predicate = Expr.col("l_shipdate").binary(BinaryOp.LESS_OR_EQUAL, Expr.date("1998-09-02"));
         List<List<Object>> rows = new ArrayList<>();
         try (VectorGroupedAggregate op = new VectorGroupedAggregate(
-                new VectorFilter(new VectorScan(table), predicate),
+                new VectorFilter(new VectorScan(table), predicate()),
                 List.of("l_returnflag", "l_linestatus"), aggregates(), outputBatch)) {
             op.open();
             VectorBatch batch;
@@ -87,8 +108,43 @@ class TpchQ1Test {
         return ResultTable.of(COLUMNS, rows);
     }
 
+    /** The same Q1 on the row engine. */
+    private static ResultTable runQ1Row(Path tbl, int batchSize) throws IOException {
+        InMemoryTable table = InMemoryTable.load(tbl, LINEITEM, DelimitedOptions.tbl(), batchSize);
+        List<List<Object>> rows = new ArrayList<>();
+        try (RowGroupedAggregate op = new RowGroupedAggregate(
+                new RowFilter(new RowScan(table), predicate()),
+                List.of("l_returnflag", "l_linestatus"), aggregates())) {
+            op.open();
+            Row row;
+            while ((row = op.next()) != null) {
+                List<Object> values = new ArrayList<>();
+                for (int column = 0; column < op.schema().size(); column++) {
+                    values.add(row.get(column));
+                }
+                rows.add(values);
+            }
+        }
+        return ResultTable.of(COLUMNS, rows);
+    }
+
     @Test
-    @DisplayName("grouped aggregation matches DuckDB at SF0.01, compared as a multiset")
+    @DisplayName("the row engine computes the same Q1 as DuckDB")
+    void rowEngineMatchesTheOracle(@TempDir Path dir) throws IOException {
+        TpchData.generate(0.01, dir);
+        try (DuckDbOracle oracle = DuckDbOracle.inMemory()) {
+            oracle.registerParquet("lineitem", dir.resolve("lineitem.parquet"));
+            ResultTable expected = oracle.query(QUERY);
+            ResultComparator comparator = new ResultComparator();
+            for (int batchSize : new int[] {1, 1024}) {
+                var diff = comparator.compare(expected, runQ1Row(dir.resolve("lineitem.tbl"), batchSize), false);
+                assertTrue(diff.isEmpty(), "row batch " + batchSize + ": " + diff.orElse(""));
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("every Q1 column matches DuckDB at SF0.01, compared as a multiset")
     void groupedAggregationMatchesTheOracle(@TempDir Path dir) throws IOException {
         TpchData.generate(0.01, dir);
         Path tbl = dir.resolve("lineitem.tbl");
