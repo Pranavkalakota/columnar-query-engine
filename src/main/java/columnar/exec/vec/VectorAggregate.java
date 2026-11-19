@@ -2,8 +2,8 @@ package columnar.exec.vec;
 
 import columnar.exec.agg.Aggregate;
 import columnar.exec.agg.AggregateFunction;
-import columnar.expr.BinaryOp;
-import columnar.expr.Expr;
+import columnar.expr.vec.DoubleCompiler;
+import columnar.expr.vec.DoubleKernel;
 import columnar.expr.vec.RunningSum;
 import columnar.types.DataType;
 import columnar.types.Field;
@@ -91,34 +91,19 @@ public final class VectorAggregate implements VectorOperator {
 
     /** Only the shapes with a kernel behind them compile. */
     private Folder folder(Aggregate aggregate) {
-        if (aggregate.function() == AggregateFunction.COUNT_STAR) {
+        AggregateFunction function = aggregate.function();
+        if (function == AggregateFunction.COUNT_STAR) {
             return new RowCount();
         }
-        if (aggregate.function() != AggregateFunction.SUM) {
-            throw new UnsupportedOperationException("no kernel for " + aggregate.function());
+        if (function != AggregateFunction.SUM && function != AggregateFunction.AVG) {
+            throw new UnsupportedOperationException("no kernel for " + function);
         }
         Schema input = child.schema();
         if (aggregate.resultType(input) != DataType.DOUBLE) {
-            throw new UnsupportedOperationException("only double sums have a kernel: " + aggregate);
+            throw new UnsupportedOperationException("only double results have a kernel: " + aggregate);
         }
-        Expr expr = aggregate.input();
-        if (expr instanceof Expr.ColumnRef ref) {
-            return new ColumnSum(doubleColumn(ref, input));
-        }
-        if (expr instanceof Expr.Binary binary && binary.op() == BinaryOp.MULTIPLY
-                && binary.left() instanceof Expr.ColumnRef left
-                && binary.right() instanceof Expr.ColumnRef right) {
-            return new ProductSum(doubleColumn(left, input), doubleColumn(right, input));
-        }
-        throw new UnsupportedOperationException("no kernel for SUM(" + expr + ")");
-    }
-
-    private static int doubleColumn(Expr.ColumnRef ref, Schema schema) {
-        int index = schema.requireIndexOf(ref.name());
-        if (schema.type(index) != DataType.DOUBLE) {
-            throw new UnsupportedOperationException("expected a double column: " + ref);
-        }
-        return index;
+        return new ExpressionSum(DoubleCompiler.compile(aggregate.input(), input),
+                function == AggregateFunction.AVG);
     }
 
     @Override
@@ -151,57 +136,33 @@ public final class VectorAggregate implements VectorOperator {
         }
     }
 
-    private static final class ColumnSum implements Folder {
-        private final int index;
+    /** SUM or AVG over any compiled double expression. */
+    private static final class ExpressionSum implements Folder {
+        private final DoubleKernel kernel;
+        private final boolean mean;
         private final RunningSum state = new RunningSum();
+        private double[] values = new double[0];
+        private boolean[] valid = new boolean[0];
 
-        ColumnSum(int index) {
-            this.index = index;
+        ExpressionSum(DoubleKernel kernel, boolean mean) {
+            this.kernel = kernel;
+            this.mean = mean;
         }
 
         @Override
         public void fold(VectorBatch batch) {
-            DoubleVector column = (DoubleVector) batch.column(index);
-            int[] sel = batch.selection();
-            if (sel == null) {
-                state.addColumn(column.values(), column.validity(), batch.rowCount());
-            } else {
-                state.addColumn(column.values(), column.validity(), sel, batch.selectedCount());
+            int rows = batch.selectedCount();
+            if (values.length < rows) {
+                values = new double[rows];
+                valid = new boolean[rows];
             }
+            boolean all = kernel.evaluate(batch, batch.selection(), rows, values, valid);
+            state.addValues(values, valid, all, rows);
         }
 
         @Override
         public Object result() {
-            return state.result();
-        }
-    }
-
-    private static final class ProductSum implements Folder {
-        private final int left;
-        private final int right;
-        private final RunningSum state = new RunningSum();
-
-        ProductSum(int left, int right) {
-            this.left = left;
-            this.right = right;
-        }
-
-        @Override
-        public void fold(VectorBatch batch) {
-            DoubleVector a = (DoubleVector) batch.column(left);
-            DoubleVector b = (DoubleVector) batch.column(right);
-            int[] sel = batch.selection();
-            if (sel == null) {
-                state.addProduct(a.values(), a.validity(), b.values(), b.validity(), batch.rowCount());
-            } else {
-                state.addProduct(a.values(), a.validity(), b.values(), b.validity(), sel,
-                        batch.selectedCount());
-            }
-        }
-
-        @Override
-        public Object result() {
-            return state.result();
+            return mean ? state.mean() : state.result();
         }
     }
 }

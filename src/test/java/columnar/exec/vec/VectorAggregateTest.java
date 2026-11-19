@@ -162,7 +162,24 @@ class VectorAggregateTest {
         assertThrows(UnsupportedOperationException.class,
                 () -> new VectorAggregate(scan, List.of(Aggregate.sum(Expr.col("qty"), "q"))));
         assertThrows(UnsupportedOperationException.class, () -> new VectorAggregate(scan,
-                List.of(Aggregate.sum(Expr.col("price").binary(BinaryOp.ADD, Expr.lit(1.0)), "s"))));
+                List.of(Aggregate.sum(Expr.col("price").binary(BinaryOp.MULTIPLY, Expr.col("qty")), "s"))));
         assertThrows(IllegalArgumentException.class, () -> new VectorAggregate(scan, List.of()));
+    }
+
+    @Test
+    @DisplayName("an arithmetic expression sums, and matches the row engine")
+    void sumsAnArithmeticExpression() {
+        Random random = new Random(23L);
+        Expr charged = Expr.col("price")
+                .binary(BinaryOp.MULTIPLY, Expr.lit(1.0).binary(BinaryOp.SUBTRACT, Expr.col("discount")));
+        List<Aggregate> aggregates = List.of(Aggregate.sum(charged, "charge"),
+                Aggregate.avg(Expr.col("price"), "mean"));
+        for (int trial = 0; trial < 50; trial++) {
+            InMemoryTable table = table(random, 1 + random.nextInt(300), 1 + random.nextInt(64), trial % 2 == 0);
+            assertEquals(rowResult(table, predicate(), aggregates, 0),
+                    vectorResult(table, predicate(), aggregates, 0), "sum, trial " + trial);
+            assertEquals(rowResult(table, predicate(), aggregates, 1),
+                    vectorResult(table, predicate(), aggregates, 1), "avg, trial " + trial);
+        }
     }
 }

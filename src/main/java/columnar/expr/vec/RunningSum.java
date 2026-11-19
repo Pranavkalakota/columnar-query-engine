@@ -26,6 +26,33 @@ public final class RunningSum {
         return count == 0 ? null : sum;
     }
 
+    /** The mean, or NULL when nothing contributed. */
+    public Double mean() {
+        return count == 0 ? null : sum / count;
+    }
+
+    /** Folds values a kernel already computed, skipping invalid rows. */
+    public void addValues(double[] values, boolean[] valid, boolean allValid, int n) {
+        double running = sum;
+        if (allValid) {
+            for (int i = 0; i < n; i++) {
+                running += values[i];
+            }
+            sum = running;
+            count += n;
+            return;
+        }
+        long seen = count;
+        for (int i = 0; i < n; i++) {
+            if (valid[i]) {
+                running += values[i];
+                seen++;
+            }
+        }
+        sum = running;
+        count = seen;
+    }
+
     public void addColumn(double[] v, Validity nulls, int n) {
         double running = sum;
         if (!nulls.mayHaveNulls()) {
