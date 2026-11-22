@@ -22,6 +22,7 @@ java -Xms4g -Xmx4g -XX:+AlwaysPreTouch \
   -cp target/classes:target/test-classes \
   columnar.bench.Q6Benchmark data/sf0.1 8 15
 # or columnar.bench.Q1Benchmark data/sf0.1 10 21
+# or columnar.bench.SortBenchmark data/sf0.1 5 11
 ```
 
 ## The harness settles between engines, and it mattered
@@ -67,19 +68,22 @@ checks the same query against DuckDB.
 
 ## TPC-H Q1, scale factor 0.1
 
-Every column of Q1, including `sum(l_extendedprice * (1 - l_discount) *
-(1 + l_tax))`, grouped on `l_returnflag` and `l_linestatus`. No `ORDER BY`,
-because there is no sort operator yet. 10 warmups, 21 measured runs.
+Q1 exactly as the specification writes it: every column, including
+`sum(l_extendedprice * (1 - l_discount) * (1 + l_tax))`, grouped on
+`l_returnflag` and `l_linestatus`, with its `ORDER BY`. 10 warmups, 21
+measured runs.
 
 | Engine | median | min | max |
 |---|---:|---:|---:|
-| `ROW_BOXED` | 144.60 ms | 143.08 | 148.34 |
-| `ROW_TUNED` | 87.90 ms | 87.11 | 90.71 |
-| `VECTOR` | 28.72 ms | 27.75 | 29.04 |
+| `ROW_BOXED` | 148.20 ms | 146.31 | 166.47 |
+| `ROW_TUNED` | 87.57 ms | 87.12 | 89.66 |
+| `VECTOR` | 29.35 ms | 28.61 | 29.68 |
 
 **`VECTOR` is 2.9x faster than `ROW_TUNED`, and 5.0x faster than `ROW_BOXED`.**
-Seven settled runs ranged 2.92x to 3.19x; the lowest is the one to quote. All
-three engines produce identical output for all four groups.
+Four runs of the full query gave 2.96x to 3.10x; seven earlier runs without
+the final sort gave 2.92x to 3.19x. The sort adds nothing measurable, since
+Q1 produces four rows. 2.92x is the lowest of all eleven, so 2.9x is the
+figure to quote. All three engines produce identical output, in order.
 
 ## Why Q1 gains 2.9x where Q6 gains 12.4x
 
@@ -106,6 +110,44 @@ is what it buys when the filter passes nearly everything and the query is
 dominated by hashing. Quoting the first figure alone would describe the
 friendlier half of the engine.
 
+## A full sort of lineitem, scale factor 0.1
+
+All 600,572 rows and all 16 columns, ordered by `l_shipdate`,
+`l_extendedprice DESC`, then the primary key so the order is total. This is
+not a TPC-H query; it exists to measure the sort operator on a large input.
+5 warmups, 11 measured runs. The engines are checked to agree by an
+order-sensitive checksum over every output row.
+
+| Engine | median | min | max |
+|---|---:|---:|---:|
+| `ROW_BOXED` | 452.74 ms | 411.58 | 481.25 |
+| `ROW_TUNED` | 384.29 ms | 376.56 | 499.89 |
+| `VECTOR` | 232.49 ms | 229.34 | 238.39 |
+
+**`VECTOR` is 1.6x faster than `ROW_TUNED`, and 1.9x faster than
+`ROW_BOXED`.** Three runs gave 1.60x, 1.64x and 1.65x.
+
+**The first version managed 1.12x**, and the reason is worth recording.
+Timing its three phases separately showed the copy-in at about 44 ms, the
+sort at about 122 ms, and the gather — writing the sorted rows back out — at
+about 180 ms, more than the sort itself. The gather was making one virtual
+call per value: 16 columns times 600,572 rows is 9.6 million calls, each
+re-checking bounds. That is row-at-a-time code inside the vectorized engine.
+Replacing it with one bulk gather per column per batch, writing straight into
+the primitive array, took the gather to about 69 ms. Output did not change;
+the checksum is identical before and after.
+
+**Why a sort gains far less than a filter.** A sort's work is mostly moving
+data and comparing it, and both engines do the same O(n log n) comparisons.
+Every one of the 600,572 rows survives, so there is no selectivity to exploit,
+and five of the sixteen columns are strings that must be copied twice.
+
+**What is left on the table.** The comparison phase, about 122 ms, is now the
+largest. Each comparison calls through the column buffers, and with keys of
+three different types that call cannot be inlined. The known fix is to
+encode the sort keys into fixed-width normalized keys and compare those as
+plain integers or bytes, which is what DuckDB does. It has not been done here.
+
 ## What this does and does not show
 
 It shows what **batch-at-a-time execution with compiled kernels** buys over a
@@ -126,4 +168,5 @@ Two more things help the vectorized engine on Q6, and are worth naming:
 - `lineitem` has no nulls, so every kernel takes its no-null fast path.
 
 Not yet measured: any scale factor above 0.1, cold cache, multiple threads, a
-comparison against DuckDB's own execution time, or any query with a join.
+comparison against DuckDB's own execution time, any query with a join, or a
+sort large enough to need spilling.

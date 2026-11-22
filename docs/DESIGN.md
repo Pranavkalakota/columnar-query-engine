@@ -342,6 +342,62 @@ Writing a deliberately slower operator is worth it because the alternative was
 reporting a vectorized `GROUP BY` timing with nothing to compare it against,
 which is a throughput figure that reads like a speedup.
 
+## ORDER BY follows DuckDB, checked rather than assumed
+
+Before writing the sort, DuckDB was asked how it orders things, and two of
+its answers differ from what a straightforward implementation would do.
+
+- **NULLs sort last in both directions.** DuckDB's `default_null_order` is
+  `NULLS_LAST`, so a `DESC` sort still puts NULLs at the end. Postgres puts
+  them first for `DESC`, which is the behaviour most people would guess.
+- **Strings sort by code point, and `String.compareTo` does not.** DuckDB
+  orders the fullwidth tilde U+FF5E before the emoji U+1F600. Java's
+  `compareTo` compares UTF-16 code units, sees the emoji's high surrogate
+  0xD83D, and puts the emoji first. A sort built on `compareTo` would silently
+  disagree with DuckDB on any text outside the basic multilingual plane. The
+  row engine compares code points; the vector engine compares unsigned UTF-8
+  bytes, which is the same order.
+- `NaN` sorts above every other double, which `Double.compare` already does.
+  But `-0.0` and `0.0` are equal in SQL and `Double.compare` calls `-0.0`
+  smaller, so doubles get their own comparison too.
+
+`SortSemanticsOracleTest` pins all of this to DuckDB: a table of NULLs,
+infinities, `NaN`, both zeros, supplementary characters, pre-1970 dates and
+deliberate ties, sorted every way on all three systems and compared row for
+row. The test was mutation-checked: swapping in `compareTo` fails it on
+exactly the string orderings, and putting NULLs first fails every case.
+
+## The vector sort sorts row numbers, not rows
+
+`VectorSort` copies each column into a growable primitive buffer, sorts an
+`int[]` permutation of row numbers, then gathers every column through that
+permutation. Rows are never moved during the sort; only four-byte ints are.
+
+The permutation is sorted with a merge sort written for `int[]`, because the
+JDK's `Arrays.sort(int[])` takes no comparator and the version that does
+needs `Integer[]`. Boxing every row number would allocate an object per row,
+which is the cost the vector engine exists to remove. The merge sort is
+stable and is checked against the JDK's own stable sort on 2,000 inputs full
+of ties.
+
+Stability is not something SQL promises, but it means two engines given the
+same input in the same order break ties identically, so their outputs can be
+compared exactly instead of as multisets.
+
+Strings are compared straight out of a byte pool, so sorting never decodes a
+`String`.
+
+## Sorting is blocking and fully in memory
+
+A sort cannot emit its first row until it has seen its last, so both sort
+operators buffer their entire input. There is no spill to disk; the input
+must fit in the heap. That is fine for an in-memory engine at these scale
+factors and is the first thing that would break at larger ones.
+
+The row sort copies each row into its own array because the operator below
+it reuses a single cursor. It keeps a `DATE` as its integer day rather than a
+`LocalDate`, so an operator above it can still call `getInt` on it.
+
 ## Known divergences from the oracle
 
 - `SUM` over an integer column returns `INT64` here and `HUGEINT` in DuckDB.

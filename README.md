@@ -42,26 +42,29 @@ Work in progress. What is in the repository so far:
 - Scan, filter and ungrouped aggregation on all three engines
 - A vectorized filter that compiles a conjunction into a chain of kernels
 - Hash `GROUP BY` on int, date, long and string keys, with COUNT, SUM and AVG
-- Arithmetic expressions compiled to kernels, so TPC-H Q1 runs end to end
+- Arithmetic expressions compiled to kernels
 - A row-at-a-time `GROUP BY`, so the vectorized one has a baseline
+- `ORDER BY` on both engines, with DuckDB's NULL and string ordering
 
-Not built yet: joins, sorting, the columnar file format, the SQL frontend, the
-optimizer, the Parquet reader, and parallel execution.
+Not built yet: joins, the columnar file format, the SQL frontend, the
+optimizer, the Parquet reader, spilling to disk, and parallel execution.
 
 **Measured, at scale factor 0.1** (600,572 lineitem rows, in memory, single
-thread). Q6 and Q1 are both run on all three engines, which agree on every
-output and match DuckDB:
+thread). TPC-H Q6 and the full Q1, `ORDER BY` included, run on all three
+engines, which agree on every output and match DuckDB:
 
 | Query | `ROW_BOXED` | `ROW_TUNED` | `VECTOR` | vector speedup |
 |---|---:|---:|---:|---:|
 | Q6 | 98.34 ms | 25.71 ms | 2.08 ms | **12.4x** over tuned |
-| Q1 | 144.60 ms | 87.90 ms | 28.72 ms | **2.9x** over tuned |
+| Q1 | 148.20 ms | 87.57 ms | 29.35 ms | **2.9x** over tuned |
+| Sort, 600K rows | 452.74 ms | 384.29 ms | 232.49 ms | **1.6x** over tuned |
 
 The gap between them is the interesting part. Q6's filter keeps 1.9% of rows,
 so the kernel chain discards almost everything before the aggregate runs. Q1's
 keeps 98.5%, and every surviving row still needs a per-row hash probe that
 batching cannot remove. 12.4x is what vectorization buys on a selective scan;
-2.9x is what it buys when the query is dominated by hashing.
+2.9x is what it buys when the query is dominated by hashing; 1.6x is what it
+buys on a sort, which is mostly moving data and comparing it.
 
 The tuned row engine interprets the expression tree once per row and boxes the
 intermediates, so neither figure is attributable to SIMD alone. Method,
@@ -69,8 +72,8 @@ hardware and the rest of the caveats are in `docs/BENCHMARKS.md`.
 
 ## Three execution engines, one plan
 
-All three engines run scans, filters, and grouped and ungrouped aggregation
-today. They share the expression tree and the same in-memory batches, so only
+All three engines run scans, filters, grouped and ungrouped aggregation, and
+sorts today. They share the expression tree and the same in-memory batches, so only
 the physical operators differ, which isolates the single variable the
 benchmark is about: the execution model.
 
