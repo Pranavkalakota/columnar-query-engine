@@ -7,9 +7,12 @@ import columnar.exec.row.RowFilter;
 import columnar.exec.row.RowGroupedAggregate;
 import columnar.exec.row.RowOperator;
 import columnar.exec.row.RowScan;
+import columnar.exec.row.RowSort;
+import columnar.exec.sort.SortKey;
 import columnar.exec.vec.VectorFilter;
 import columnar.exec.vec.VectorGroupedAggregate;
 import columnar.exec.vec.VectorScan;
+import columnar.exec.vec.VectorSort;
 import columnar.expr.BinaryOp;
 import columnar.expr.Expr;
 import columnar.storage.InMemoryTable;
@@ -18,17 +21,17 @@ import columnar.vector.VectorBatch;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 
-/** Times TPC-H Q1 on each engine. */
+/** Times full TPC-H Q1, ORDER BY included, on each engine. */
 public final class Q1Benchmark {
 
     private Q1Benchmark() {
     }
 
     private static final List<String> KEYS = List.of("l_returnflag", "l_linestatus");
+    private static final List<SortKey> ORDER = List.of(SortKey.asc("l_returnflag"), SortKey.asc("l_linestatus"));
 
     /** The Q1 cutoff: 1998-12-01 less ninety days. */
     public static Expr predicate() {
@@ -51,16 +54,10 @@ public final class Q1Benchmark {
                 Aggregate.countStar("count_order"));
     }
 
-    /** Sorted rows, so two engines compare without an ORDER BY. */
-    private static List<String> sorted(List<String> rows) {
-        Collections.sort(rows);
-        return rows;
-    }
-
     public static Object runQ1(RowOperator scan) {
         List<String> rows = new ArrayList<>();
-        try (RowGroupedAggregate op = new RowGroupedAggregate(
-                new RowFilter(scan, predicate()), KEYS, aggregates())) {
+        try (RowSort op = new RowSort(new RowGroupedAggregate(
+                new RowFilter(scan, predicate()), KEYS, aggregates()), ORDER)) {
             op.open();
             Row row;
             while ((row = op.next()) != null) {
@@ -71,13 +68,13 @@ public final class Q1Benchmark {
                 rows.add(line.toString());
             }
         }
-        return sorted(rows);
+        return rows;
     }
 
     public static Object runQ1Vector(InMemoryTable table) {
         List<String> rows = new ArrayList<>();
-        try (VectorGroupedAggregate op = new VectorGroupedAggregate(
-                new VectorFilter(new VectorScan(table), predicate()), KEYS, aggregates(), 1024)) {
+        try (VectorSort op = new VectorSort(new VectorGroupedAggregate(
+                new VectorFilter(new VectorScan(table), predicate()), KEYS, aggregates(), 1024), ORDER, 1024)) {
             op.open();
             VectorBatch batch;
             while ((batch = op.next()) != null) {
@@ -90,7 +87,7 @@ public final class Q1Benchmark {
                 }
             }
         }
-        return sorted(rows);
+        return rows;
     }
 
     public static void main(String[] args) throws IOException {
