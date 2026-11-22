@@ -92,8 +92,8 @@ public final class RowGroupedAggregate implements RowOperator {
         Row row;
         while ((row = child.next()) != null) {
             List<Object> key = new ArrayList<>(keyColumns.length);
-            for (int column : keyColumns) {
-                key.add(row.get(column));
+            for (int i = 0; i < keyColumns.length; i++) {
+                key.add(RowValues.read(row, keyColumns[i], schema.type(i)));
             }
             Accumulator[] state = groups.computeIfAbsent(key, k -> newState());
             for (int i = 0; i < state.length; i++) {

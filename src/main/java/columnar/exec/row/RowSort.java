@@ -76,23 +76,8 @@ public final class RowSort implements RowOperator {
     private void drain() {
         Row row;
         while ((row = child.next()) != null) {
-            Object[] values = new Object[types.length];
-            for (int i = 0; i < types.length; i++) {
-                values[i] = row.isNull(i) ? null : read(row, i);
-            }
-            rows.add(values);
+            rows.add(RowValues.copy(row, types));
         }
-    }
-
-    /** DATE stays an int, so getInt works downstream. */
-    private Object read(Row row, int column) {
-        return switch (types[column]) {
-            case INT32, DATE -> row.getInt(column);
-            case INT64 -> row.getLong(column);
-            case DOUBLE -> row.getDouble(column);
-            case BOOLEAN -> row.getBoolean(column);
-            case VARCHAR -> row.getString(column);
-        };
     }
 
     private int compareRows(Object[] a, Object[] b) {
