@@ -398,12 +398,72 @@ The row sort copies each row into its own array because the operator below
 it reuses a single cursor. It keeps a `DATE` as its integer day rather than a
 `LocalDate`, so an operator above it can still call `getInt` on it.
 
+## The join reuses the GROUP BY table, and undoes one of its rules
+
+A hash join's build side is a table from key to rows, and `GroupKeys` already
+maps keys to dense ordinals with every key type, NULL flags and string pools
+handled. The join reuses it and adds three arrays: the first and last build
+row for each ordinal, and a `next` link per build row.
+
+Two changes made that possible. The key stores used to read a column fixed
+when they were built; they now read whichever column they are handed, so the
+probe side can look up keys that sit in different positions. And the table
+gained `find`, a lookup that never inserts, because probing must not add the
+probe's keys to the build table.
+
+The rule it undoes is NULL. In a `GROUP BY`, NULL is a key like any other and
+all the NULLs form one group. In a join, NULL equals nothing, not even another
+NULL. DuckDB confirms it: joining `(1), (NULL)` to `(1), (NULL)` gives one row.
+So both sides skip any row with a NULL in its key before touching the table.
+Reusing the grouping table without that step would have joined every NULL to
+every other NULL. `JoinSemanticsOracleTest` was mutation-checked for exactly
+this: removing the skip on either engine fails three of its five tests.
+
+## Build rows chain in arrival order
+
+Each key's build rows are linked head to tail, not pushed onto the front, so a
+probe row's matches come out in the order the build side produced them. The
+row join's `LinkedHashMap` of lists does the same, so the two engines emit the
+same pairs in the same order and can be compared exactly instead of as
+multisets. SQL promises no join order; this is for testing.
+
+## The probe side copies only rows that match
+
+In Q3 the lineitem probe has 324,322 rows and 3,321 of them find a match.
+The vector join therefore records matching row numbers first and gathers only
+those rows into the output, rather than copying probe batches and filtering
+afterwards.
+
+The row baseline gets the same courtesy. Its first version copied all sixteen
+probe columns, boxed, before checking the key, which cost it time for a reason
+unrelated to being row-at-a-time. It now reads the key alone and copies the
+row only on a match. A baseline that loses through carelessness makes the
+speedup a measurement of the carelessness.
+
+## The caller picks the build side
+
+There is no optimizer, so a plan names which input is built and which is
+probed, and the smaller input should be built. Q3 builds the 3,111 matching
+customers, probes them with orders, then builds that 15,224-row result and
+probes it with lineitem.
+
+## Every row operator reads values the same way
+
+Q3 found a bug from an earlier session. `RowGroupedAggregate` built its keys
+with `row.get()`, which turns a DATE into a `LocalDate`, while every other row
+operator keeps a DATE as its integer day. Nothing noticed until Q3 grouped on a
+date and then sorted on it, and the sort's `getInt` hit a `LocalDate`. Three
+operators had each written their own typed read and one got it wrong, so they
+now share a single `RowValues.read`, with a test that sorts on a grouped date.
+
 ## Known divergences from the oracle
 
 - `SUM` over an integer column returns `INT64` here and `HUGEINT` in DuckDB.
   The two agree for every sum that fits in a long; past that DuckDB is correct
   and this overflows. TPC-H sums are over `DOUBLE` columns, so the benchmark
   never reaches the gap.
+- Join keys must have the same type on both sides. DuckDB would cast an
+  `INTEGER` key to `BIGINT` to join them; this refuses the plan instead.
 - There is no `DECIMAL` type. TPC-H's money columns are cast to `DOUBLE` at
   generation time so both sides read identical data. Double addition is not
   associative, so sums depend on evaluation order, which is why comparison uses

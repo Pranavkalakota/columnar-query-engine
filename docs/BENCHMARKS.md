@@ -23,6 +23,7 @@ java -Xms4g -Xmx4g -XX:+AlwaysPreTouch \
   columnar.bench.Q6Benchmark data/sf0.1 8 15
 # or columnar.bench.Q1Benchmark data/sf0.1 10 21
 # or columnar.bench.SortBenchmark data/sf0.1 5 11
+# or columnar.bench.Q3Benchmark data/sf0.1 8 15
 ```
 
 ## The harness settles between engines, and it mattered
@@ -84,6 +85,39 @@ Four runs of the full query gave 2.96x to 3.10x; seven earlier runs without
 the final sort gave 2.92x to 3.19x. The sort adds nothing measurable, since
 Q1 produces four rows. 2.92x is the lowest of all eleven, so 2.9x is the
 figure to quote. All three engines produce identical output, in order.
+
+## TPC-H Q3, scale factor 0.1
+
+Two hash joins: 3,111 `BUILDING` customers are built and probed by 72,678
+early orders, giving 15,224 rows; those are built and probed by 324,322 late
+line items, of which 3,321 match. Then a `GROUP BY` into 1,216 groups, an
+`ORDER BY` on revenue, and `LIMIT 10`. Revenue is moved to the end of the
+select list, where grouping puts it; otherwise this is Q3 as written.
+8 warmups, 15 measured runs.
+
+| Engine | median | min | max |
+|---|---:|---:|---:|
+| `ROW_BOXED` | 120.04 ms | 117.50 | 134.29 |
+| `ROW_TUNED` | 29.91 ms | 29.10 | 30.92 |
+| `VECTOR` | 11.49 ms | 11.03 | 11.90 |
+
+**`VECTOR` is 2.6x faster than `ROW_TUNED`, and about 10x faster than
+`ROW_BOXED`.** Three runs gave 2.60x, 2.68x and 2.76x. All three engines return
+the same ten rows, and `TpchQ3Test` checks them, and every group behind the
+limit, against DuckDB.
+
+**The first measurement said 6.5x, and was wrong.** The row join copied all
+sixteen columns of every probe row, boxed, before checking its key, so it paid
+to copy 324,322 line items in order to use 3,321 of them. A row-at-a-time join
+has no reason to do that. Once it read the key first and copied only on a
+match, `ROW_TUNED` fell from about 76 ms to about 30 ms and the speedup fell
+with it. Same lesson as the harness bug: a baseline that loses through
+carelessness turns the speedup into a measurement of the carelessness.
+
+**Why 2.6x and not more.** Q3's cost is the lineitem probe: 324,322 rows each
+need a hash lookup, in both engines, and batching cannot vectorize a hash
+probe. It sits with Q1, which is dominated by hashing in the same way, rather
+than with Q6, which is not.
 
 ## Why Q1 gains 2.9x where Q6 gains 12.4x
 
@@ -168,5 +202,5 @@ Two more things help the vectorized engine on Q6, and are worth naming:
 - `lineitem` has no nulls, so every kernel takes its no-null fast path.
 
 Not yet measured: any scale factor above 0.1, cold cache, multiple threads, a
-comparison against DuckDB's own execution time, any query with a join, or a
-sort large enough to need spilling.
+comparison against DuckDB's own execution time, outer or semi joins, or a sort
+or join build side large enough to need spilling.
