@@ -5,35 +5,29 @@ import columnar.vector.ColumnVector;
 import columnar.vector.IntVector;
 import columnar.vector.LongVector;
 import columnar.vector.StringVector;
-import columnar.vector.VectorBatch;
 import java.util.Arrays;
 
 /** One key column's values, one entry per group. */
 abstract class GroupKeyStore {
 
-    protected final int column;
     protected boolean[] nulls = new boolean[64];
     protected int count;
 
-    protected GroupKeyStore(int column) {
-        this.column = column;
-    }
-
     /** Doubles are refused: equality makes a poor key. */
-    static GroupKeyStore create(DataType type, int column) {
+    static GroupKeyStore create(DataType type) {
         return switch (type) {
-            case INT32, DATE -> new Ints(type, column);
-            case INT64 -> new Longs(column);
-            case VARCHAR -> new Strings(column);
+            case INT32, DATE -> new Ints(type);
+            case INT64 -> new Longs();
+            case VARCHAR -> new Strings();
             default -> throw new UnsupportedOperationException("cannot group by " + type);
         };
     }
 
-    abstract int hash(VectorBatch batch, int row);
+    abstract int hash(ColumnVector vector, int row);
 
-    abstract boolean matches(VectorBatch batch, int row, int group);
+    abstract boolean matches(ColumnVector vector, int row, int group);
 
-    abstract void append(VectorBatch batch, int row);
+    abstract void append(ColumnVector vector, int row);
 
     abstract void writeTo(int group, ColumnVector out, int row);
 
@@ -49,27 +43,26 @@ abstract class GroupKeyStore {
         private final DataType type;
         private int[] values = new int[64];
 
-        Ints(DataType type, int column) {
-            super(column);
+        Ints(DataType type) {
             this.type = type;
         }
 
         @Override
-        int hash(VectorBatch batch, int row) {
-            IntVector v = (IntVector) batch.column(column);
+        int hash(ColumnVector vector, int row) {
+            IntVector v = (IntVector) vector;
             return v.isNull(row) ? 0 : v.get(row);
         }
 
         @Override
-        boolean matches(VectorBatch batch, int row, int group) {
-            IntVector v = (IntVector) batch.column(column);
+        boolean matches(ColumnVector vector, int row, int group) {
+            IntVector v = (IntVector) vector;
             boolean isNull = v.isNull(row);
             return isNull == nulls[group] && (isNull || v.get(row) == values[group]);
         }
 
         @Override
-        void append(VectorBatch batch, int row) {
-            IntVector v = (IntVector) batch.column(column);
+        void append(ColumnVector vector, int row) {
+            IntVector v = (IntVector) vector;
             if (count >= values.length) {
                 values = Arrays.copyOf(values, values.length * 2);
             }
@@ -95,26 +88,22 @@ abstract class GroupKeyStore {
     private static final class Longs extends GroupKeyStore {
         private long[] values = new long[64];
 
-        Longs(int column) {
-            super(column);
-        }
-
         @Override
-        int hash(VectorBatch batch, int row) {
-            LongVector v = (LongVector) batch.column(column);
+        int hash(ColumnVector vector, int row) {
+            LongVector v = (LongVector) vector;
             return v.isNull(row) ? 0 : Long.hashCode(v.get(row));
         }
 
         @Override
-        boolean matches(VectorBatch batch, int row, int group) {
-            LongVector v = (LongVector) batch.column(column);
+        boolean matches(ColumnVector vector, int row, int group) {
+            LongVector v = (LongVector) vector;
             boolean isNull = v.isNull(row);
             return isNull == nulls[group] && (isNull || v.get(row) == values[group]);
         }
 
         @Override
-        void append(VectorBatch batch, int row) {
-            LongVector v = (LongVector) batch.column(column);
+        void append(ColumnVector vector, int row) {
+            LongVector v = (LongVector) vector;
             if (count >= values.length) {
                 values = Arrays.copyOf(values, values.length * 2);
             }
@@ -136,13 +125,9 @@ abstract class GroupKeyStore {
         private byte[] pool = new byte[512];
         private int[] offsets = new int[65];
 
-        Strings(int column) {
-            super(column);
-        }
-
         @Override
-        int hash(VectorBatch batch, int row) {
-            StringVector v = (StringVector) batch.column(column);
+        int hash(ColumnVector vector, int row) {
+            StringVector v = (StringVector) vector;
             if (v.isNull(row)) {
                 return 0;
             }
@@ -156,8 +141,8 @@ abstract class GroupKeyStore {
         }
 
         @Override
-        boolean matches(VectorBatch batch, int row, int group) {
-            StringVector v = (StringVector) batch.column(column);
+        boolean matches(ColumnVector vector, int row, int group) {
+            StringVector v = (StringVector) vector;
             boolean isNull = v.isNull(row);
             if (isNull != nulls[group]) {
                 return false;
@@ -175,8 +160,8 @@ abstract class GroupKeyStore {
         }
 
         @Override
-        void append(VectorBatch batch, int row) {
-            StringVector v = (StringVector) batch.column(column);
+        void append(ColumnVector vector, int row) {
+            StringVector v = (StringVector) vector;
             int[] bounds = v.offsets();
             int length = v.isNull(row) ? 0 : bounds[row + 1] - bounds[row];
             if (count + 1 >= offsets.length) {

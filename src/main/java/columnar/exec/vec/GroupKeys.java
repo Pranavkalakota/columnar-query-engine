@@ -15,6 +15,7 @@ public final class GroupKeys {
 
     private final List<String> names;
     private final GroupKeyStore[] stores;
+    private final int[] columns;
     private final Schema schema;
     private int[] buckets;
     private int[] hashes;
@@ -27,11 +28,13 @@ public final class GroupKeys {
         }
         this.names = List.copyOf(keyNames);
         this.stores = new GroupKeyStore[names.size()];
+        this.columns = new int[names.size()];
         List<Field> fields = new ArrayList<>(names.size());
         for (int i = 0; i < names.size(); i++) {
             int column = input.requireIndexOf(names.get(i));
             DataType type = input.type(column);
-            stores[i] = GroupKeyStore.create(type, column);
+            columns[i] = column;
+            stores[i] = GroupKeyStore.create(type);
             fields.add(Field.of(names.get(i), type));
         }
         this.schema = Schema.of(fields);
@@ -56,9 +59,19 @@ public final class GroupKeys {
         }
         int[] sel = batch.selection();
         for (int i = 0; i < n; i++) {
-            ordinals[i] = groupFor(batch, sel == null ? i : sel[i]);
+            ordinals[i] = lookup(batch, sel == null ? i : sel[i], columns, true);
         }
         return ordinals;
+    }
+
+    /** The group a row belongs to, adding one if new. */
+    public int ordinalOf(VectorBatch batch, int row) {
+        return lookup(batch, row, columns, true);
+    }
+
+    /** A probe row's group, or -1; never adds one. */
+    public int find(VectorBatch batch, int row, int[] probeColumns) {
+        return lookup(batch, row, probeColumns, false);
     }
 
     /** Writes a group's key into an output row. */
@@ -68,27 +81,27 @@ public final class GroupKeys {
         }
     }
 
-    private int groupFor(VectorBatch batch, int row) {
-        int hash = hash(batch, row);
+    private int lookup(VectorBatch batch, int row, int[] cols, boolean insert) {
+        int hash = hash(batch, row, cols);
         int mask = buckets.length - 1;
         int bucket = hash & mask;
         while (true) {
             int slot = buckets[bucket];
             if (slot == 0) {
-                return addGroup(batch, row, hash, bucket);
+                return insert ? addGroup(batch, row, cols, hash, bucket) : -1;
             }
             int group = slot - 1;
-            if (hashes[group] == hash && matches(batch, row, group)) {
+            if (hashes[group] == hash && matches(batch, row, cols, group)) {
                 return group;
             }
             bucket = (bucket + 1) & mask;
         }
     }
 
-    private int addGroup(VectorBatch batch, int row, int hash, int bucket) {
+    private int addGroup(VectorBatch batch, int row, int[] cols, int hash, int bucket) {
         int group = groupCount++;
-        for (GroupKeyStore store : stores) {
-            store.append(batch, row);
+        for (int i = 0; i < stores.length; i++) {
+            stores[i].append(batch.column(cols[i]), row);
         }
         if (group >= hashes.length) {
             hashes = Arrays.copyOf(hashes, hashes.length * 2);
@@ -101,19 +114,19 @@ public final class GroupKeys {
         return group;
     }
 
-    private boolean matches(VectorBatch batch, int row, int group) {
-        for (GroupKeyStore store : stores) {
-            if (!store.matches(batch, row, group)) {
+    private boolean matches(VectorBatch batch, int row, int[] cols, int group) {
+        for (int i = 0; i < stores.length; i++) {
+            if (!stores[i].matches(batch.column(cols[i]), row, group)) {
                 return false;
             }
         }
         return true;
     }
 
-    private int hash(VectorBatch batch, int row) {
+    private int hash(VectorBatch batch, int row, int[] cols) {
         int hash = 1;
-        for (GroupKeyStore store : stores) {
-            hash = hash * 31 + store.hash(batch, row);
+        for (int i = 0; i < stores.length; i++) {
+            hash = hash * 31 + stores[i].hash(batch.column(cols[i]), row);
         }
         return mix(hash);
     }
