@@ -74,6 +74,7 @@ public final class PredicateCompiler {
         return switch (schema.type(index)) {
             case DOUBLE -> new DoubleKernel(index, op, ((Number) literal.value()).doubleValue());
             case INT32, DATE -> new IntKernel(index, op, narrow(literal.value(), expr));
+            case VARCHAR -> StringCompare.equalTo(index, op, (String) literal.value());
             default -> throw new UnsupportedOperationException("no kernel for " + schema.type(index));
         };
     }
@@ -146,7 +147,7 @@ public final class PredicateCompiler {
     private record IntKernel(int index, BinaryOp op, int constant) implements BatchPredicate {
 
         IntKernel {
-            requireOp(op, BinaryOp.LESS, BinaryOp.LESS_OR_EQUAL, BinaryOp.GREATER_OR_EQUAL);
+            requireOp(op, BinaryOp.LESS, BinaryOp.LESS_OR_EQUAL, BinaryOp.GREATER, BinaryOp.GREATER_OR_EQUAL);
         }
 
         @Override
@@ -157,6 +158,7 @@ public final class PredicateCompiler {
             return switch (op) {
                 case LESS -> IntCompare.lt(values, constant, nulls, n, out);
                 case LESS_OR_EQUAL -> IntCompare.le(values, constant, nulls, n, out);
+                case GREATER -> IntCompare.gt(values, constant, nulls, n, out);
                 default -> IntCompare.ge(values, constant, nulls, n, out);
             };
         }
@@ -169,6 +171,7 @@ public final class PredicateCompiler {
             return switch (op) {
                 case LESS -> IntCompare.lt(values, constant, nulls, sel, n, out);
                 case LESS_OR_EQUAL -> IntCompare.le(values, constant, nulls, sel, n, out);
+                case GREATER -> IntCompare.gt(values, constant, nulls, sel, n, out);
                 default -> IntCompare.ge(values, constant, nulls, sel, n, out);
             };
         }
